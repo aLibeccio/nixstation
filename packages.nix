@@ -34,7 +34,7 @@
       nh # ergonomic nix/home-manager workflow helper
       nix-output-monitor # nom: colorful nix build progress
       nixd # Nix language server (LSP for helix/editors)
-      nixfmt-rfc-style # official Nix formatter (RFC style)
+      nixfmt # official Nix formatter (RFC style is now the default)
       statix # Nix linter / anti-pattern fixer
       deadnix # find unused Nix code
       nix-tree # explore a derivation's dependency closure
