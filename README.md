@@ -19,8 +19,9 @@
 
 - `flake.nix` —— 入口:依赖(nixpkgs / home-manager)+ `generic` 自动探测配置
 - `packages.nix` —— CLI 工具清单(下面详解)
-- `shell.nix` —— zsh + oh-my-zsh + starship/zoxide/atuin/fzf/direnv 的 shell 集成
+- `shell.nix` —— zsh + oh-my-zsh + starship/zoxide/atuin/fzf/direnv + carapace/fzf-tab 的 shell 集成
 - `programs.nix` —— 声明式管理 git / gh / helix / zellij 的设置
+- `claude.carapace.yaml` —— 给 carapace 补的 `claude`(Claude Code)补全规格(见下文补全章节)
 - `home.nix` —— 主配置(import 上面几个)
 - `bootstrap.sh` —— 新机一条命令脚本
 
@@ -130,6 +131,14 @@
 - **`fzf-tab`** —— 把 Tab 补全菜单换成 fzf 模糊选择 · 按 Tab 后直接打字筛选候选,`<` / `>` 切换分组,补 `cd` 时右侧用 eza 预览目录 · 和 carapace 搭配:候选由 carapace 给,挑选体验由 fzf-tab 给
 
 > zsh 还开了 **autosuggestions**(灰字历史建议,`→` 接受)、**syntax-highlighting**(命令边打边高亮)和 **fzf-tab**(Tab 菜单变 fzf 模糊选择),配置都在 `shell.nix`。补全链路:Nix 工具自带补全 + **carapace** 统一补强候选 → **fzf-tab** 提供可模糊筛选的菜单 UI。
+
+### 给 carapace 里没有的命令加补全(以 `claude` 为例)
+
+carapace 内置 1000+ 命令,但像 `claude`(Claude Code)这种新 CLI 不在库里、自身也没有 zsh 补全 —— 于是 `claude --d<Tab>` 补不出东西。解决办法是给 carapace 写一份 **spec**:
+
+- 本仓库的 `claude.carapace.yaml` 就是 `claude` 的 spec(全部 flag + `--model`/`--permission-mode` 等取值 + 子命令)。`shell.nix` 用 `home.file` 把它声明式放到 carapace 的 spec 目录(macOS: `~/Library/Application Support/carapace/specs/`,Linux: `~/.config/carapace/specs/`),所以**跟着仓库一起多设备同步**。
+- 效果:`claude --d`→`--dangerously-skip-permissions`、`claude --model `→`opus/sonnet/fable`、`claude `→`mcp/auth/...` 子命令,且都走 fzf-tab 模糊菜单。
+- **想给别的命令加**:照着 `claude.carapace.yaml` 写一份 `<命令>.yaml`,在 `shell.nix` 里再加一行 `home.file` 指过去即可;格式见 `carapace --schema`,可用 `carapace <cmd> export <cmd> <参数>` 现场验证。
 
 ## 编辑器
 

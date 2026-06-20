@@ -10,6 +10,16 @@ let
       rm -rf "$out/share/fzf-tab/modules"
     '';
   });
+
+  # carapace 读取自定义 spec 的目录跟平台走:
+  #   macOS → ~/Library/Application Support/carapace/specs/
+  #   Linux → ~/.config/carapace/specs/
+  # (carapace 用 Go 的 os.UserConfigDir,macOS 上不是 ~/.config)
+  carapaceSpecTarget =
+    if pkgs.stdenv.hostPlatform.isDarwin then
+      "Library/Application Support/carapace/specs/claude.yaml"
+    else
+      ".config/carapace/specs/claude.yaml";
 in
 {
   # ── 让 home-manager 接管 zsh,并自动写好各工具的 shell 集成 ──
@@ -100,4 +110,11 @@ in
     enable = true;
     enableZshIntegration = true;
   };
+
+  # ── 给 carapace 补一个 claude(Claude Code)的 spec ──
+  # claude 不在 carapace 内置库里、自身也没有 zsh 补全,所以手动加。
+  # 加了之后 carapace 会把 claude 也纳入补全,fzf-tab 自动套上模糊菜单:
+  #   claude --d<Tab> → --dangerously-skip-permissions / --debug ...
+  #   claude --model <Tab> → opus/sonnet/fable;claude <Tab> → mcp/auth/... 子命令
+  home.file.${carapaceSpecTarget}.source = ./claude.carapace.yaml;
 }

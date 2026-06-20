@@ -1,0 +1,113 @@
+# carapace 自定义补全规格:claude(Claude Code CLI)
+# 由 home-manager 放到平台对应目录(macOS: ~/Library/Application Support/carapace/specs/,
+# Linux: ~/.config/carapace/specs/),让 `claude <Tab>` 能补出子命令/参数/取值。
+# 改完用 `home-manager switch ...` 应用。flag 来源:`claude --help`(v2.1.x)。
+name: claude
+description: Claude Code CLI
+flags:
+  # —— 会话:继续 / 恢复 / 非交互 ——
+  -c, --continue: Continue the most recent conversation in the current directory
+  -r, --resume=?: Resume a conversation by session ID (or open interactive picker)
+  --fork-session: When resuming, create a new session ID instead of reusing it
+  --from-pr=?: Resume a session linked to a PR by number/URL
+  -p, --print: Print response and exit (non-interactive, useful for pipes)
+  --session-id=: Use a specific session ID (must be a valid UUID)
+  --no-session-persistence: Disable session persistence (only with --print)
+  -n, --name=: Set a display name for this session
+  # —— 模型 / 强度 / 权限 ——
+  --model=: Model for the session (alias like opus/sonnet/fable, or full name)
+  --fallback-model=: Fallback model(s) when default is overloaded (only with --print)
+  --effort=: Effort level for the session (low/medium/high/xhigh/max)
+  --permission-mode=: Permission mode for the session
+  --dangerously-skip-permissions: Bypass all permission checks
+  --allow-dangerously-skip-permissions: Enable bypassing all permission checks (opt-in)
+  # —— Agent ——
+  --agent=: Agent for the current session (overrides the 'agent' setting)
+  --agents=: JSON object defining custom agents
+  # —— 目录 / 工具 / MCP ——
+  --add-dir=: Additional directories to allow tool access to
+  --allowed-tools=: Comma/space-separated list of tool names to allow
+  --allowedTools=: Comma/space-separated list of tool names to allow
+  --disallowed-tools=: Comma/space-separated list of tool names to deny
+  --disallowedTools=: Comma/space-separated list of tool names to deny
+  --tools=: Available tools from the built-in set
+  --mcp-config=: Load MCP servers from JSON files or strings
+  --strict-mcp-config: Only use MCP servers from --mcp-config
+  --mcp-debug: '[deprecated] Enable MCP debug mode (use --debug)'
+  # —— 提示词 / 设置 ——
+  --system-prompt=: System prompt to use for the session
+  --append-system-prompt=: Append a system prompt to the default
+  --settings=: Path to a settings JSON file or a JSON string
+  --setting-sources=: Setting sources to load (user, project, local)
+  # —— 输出 / IO(配合 --print)——
+  --output-format=: Output format (text/json/stream-json)
+  --input-format=: Input format (text/stream-json)
+  --include-partial-messages: Include partial message chunks (--print + stream-json)
+  --include-hook-events: Include all hook lifecycle events (stream-json)
+  --replay-user-messages: Re-emit user messages from stdin back on stdout
+  --max-budget-usd=: Maximum dollar amount to spend on API calls (only with --print)
+  --json-schema=: JSON Schema for structured output validation
+  --betas=: Beta headers to include in API requests (API key users only)
+  --file=: File resources to download at startup (file_id:relative_path)
+  # —— 插件 / 集成 ——
+  --plugin-dir=: Load a plugin from a directory or .zip for this session
+  --plugin-url=: Fetch a plugin .zip from a URL for this session
+  --ide: Automatically connect to IDE on startup if exactly one is available
+  --chrome: Enable Claude in Chrome integration
+  --no-chrome: Disable Claude in Chrome integration
+  # —— 调试 / 模式开关 ——
+  -d, --debug=?: Enable debug mode with optional category filter (e.g. api,hooks)
+  --debug-file=: Write debug logs to a specific file path (enables debug mode)
+  --verbose: Override verbose mode setting from config
+  --bare: Minimal mode (skip hooks, LSP, plugin sync, auto-memory, etc.)
+  --safe-mode: Start with all customizations disabled (troubleshooting)
+  --brief: Enable SendUserMessage tool for agent-to-user communication
+  --ax-screen-reader: Render screen-reader friendly output
+  --exclude-dynamic-system-prompt-sections: Move per-machine sections to first user message
+  --disable-slash-commands: Disable all skills
+  --prompt-suggestions=?: Enable prompt suggestions
+  # —— worktree / 远程控制 ——
+  -w, --worktree=?: Create a new git worktree for this session
+  --tmux: Create a tmux session for the worktree (requires --worktree)
+  --remote-control=?: Start an interactive session with Remote Control enabled
+  --remote-control-session-name-prefix=: Prefix for auto-generated Remote Control session names
+  # —— 杂项 ——
+  -v, --version: Output the version number
+  -h, --help: Display help for command
+completion:
+  flag:
+    model: ["fable", "opus", "sonnet"]
+    fallback-model: ["fable", "opus", "sonnet"]
+    effort: ["low", "medium", "high", "xhigh", "max"]
+    permission-mode: ["acceptEdits", "auto", "bypassPermissions", "default", "dontAsk", "plan"]
+    output-format: ["text", "json", "stream-json"]
+    input-format: ["text", "stream-json"]
+    setting-sources: ["user", "project", "local"]
+    prompt-suggestions: ["true", "false", "on", "off", "yes", "no", "1", "0"]
+    add-dir: ["$directories"]
+    debug-file: ["$files"]
+    settings: ["$files"]
+    mcp-config: ["$files"]
+commands:
+  - name: agents
+    description: Manage background agents
+  - name: auth
+    description: Manage authentication
+  - name: auto-mode
+    description: Inspect auto mode classifier configuration
+  - name: doctor
+    description: Check the health of your Claude Code auto-updater
+  - name: install
+    description: Install Claude Code native build
+  - name: mcp
+    description: Configure and manage MCP servers
+  - name: plugin
+    description: Manage Claude Code plugins
+  - name: project
+    description: Manage Claude Code project state
+  - name: setup-token
+    description: Set up a long-lived authentication token
+  - name: ultrareview
+    description: Run a cloud-hosted multi-agent code review
+  - name: update
+    description: Check for updates and install if available
