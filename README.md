@@ -132,13 +132,17 @@
 
 > zsh 还开了 **autosuggestions**(灰字历史建议,`→` 接受)、**syntax-highlighting**(命令边打边高亮)和 **fzf-tab**(Tab 菜单变 fzf 模糊选择),配置都在 `shell.nix`。补全链路:Nix 工具自带补全 + **carapace** 统一补强候选 → **fzf-tab** 提供可模糊筛选的菜单 UI。
 
-### 给 carapace 里没有的命令加补全(以 `claude` 为例)
+### 给 carapace 里没有的命令加补全(claude / codex 两种典型做法)
 
-carapace 内置 1000+ 命令,但像 `claude`(Claude Code)这种新 CLI 不在库里、自身也没有 zsh 补全 —— 于是 `claude --d<Tab>` 补不出东西。解决办法是给 carapace 写一份 **spec**:
+carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `codex <Tab>` 默认补不出东西。按"命令有没有自带补全"分两种做法,**两种最终都经 fzf-tab 弹模糊菜单**:
 
-- 本仓库的 `claude.carapace.yaml` 就是 `claude` 的 spec(全部 flag + `--model`/`--permission-mode` 等取值 + 子命令)。`shell.nix` 用 `home.file` 把它声明式放到 carapace 的 spec 目录(macOS: `~/Library/Application Support/carapace/specs/`,Linux: `~/.config/carapace/specs/`),所以**跟着仓库一起多设备同步**。
-- 效果:`claude --d`→`--dangerously-skip-permissions`、`claude --model `→`opus/sonnet/fable`、`claude `→`mcp/auth/...` 子命令,且都走 fzf-tab 模糊菜单。
-- **想给别的命令加**:照着 `claude.carapace.yaml` 写一份 `<命令>.yaml`,在 `shell.nix` 里再加一行 `home.file` 指过去即可;格式见 `carapace --schema`,可用 `carapace <cmd> export <cmd> <参数>` 现场验证。
+**A. 命令自带 `completion` 生成器(首选)—— 以 `codex` 为例**
+`codex completion zsh` 能生成完整准确的 zsh 补全,且**随版本自动更新**。`shell.nix` 把它缓存到 `~/.cache/zsh/codex-completion.zsh`(只在 codex 二进制更新时重新生成),平时开 shell 只 source、不跑 codex;没装 codex 的机器自动跳过。效果:`codex <Tab>`→`exec/review/login/mcp/...` 子命令,`codex --<Tab>`→全部 flag。
+
+**B. 命令没有自带补全 —— 以 `claude` 为例,给 carapace 写 spec**
+`claude` 既不在 carapace 库里、自身也没补全,于是手写一份 carapace **spec**:本仓库的 `claude.carapace.yaml`(全部 flag + `--model`/`--permission-mode` 等取值 + 子命令)。`shell.nix` 用 `home.file` 放到 carapace 的 spec 目录(macOS `~/Library/Application Support/carapace/specs/`,Linux `~/.config/carapace/specs/`),跟仓库一起多设备同步。效果:`claude --d`→**所有 `--d` 开头的 flag**(进菜单后可再模糊缩小),`claude --model `→`opus/sonnet/fable`,`claude `→子命令。
+
+**再加别的命令**:先看它有没有 `xxx completion zsh` —— 有就照 codex 那段加"缓存 + source";没有就照 `claude.carapace.yaml` 写 spec(格式 `carapace --schema`,可用 `carapace <cmd> export <cmd> <参数>` 现场验)。
 
 ## 编辑器
 

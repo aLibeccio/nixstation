@@ -72,6 +72,20 @@ in
         zstyle ':fzf-tab:*' switch-group '<' '>'
         # fzf 弹窗参数(60% 高度,底部弹出而非全屏)
         zstyle ':fzf-tab:*' fzf-flags --height=60%
+
+        # ── codex(Codex CLI)补全 ──
+        # codex 自带 `codex completion zsh`(clap 生成,随版本自动更新)。这里缓存到文件,
+        # 仅当 codex 二进制比缓存新时才重新生成,平时只 source,不必每次开 shell 都跑 codex。
+        # 没装 codex 的机器自动跳过;补全照样走 fzf-tab 模糊菜单。
+        if (( $+commands[codex] )); then
+          _codex_comp="''${XDG_CACHE_HOME:-$HOME/.cache}/zsh/codex-completion.zsh"
+          if [[ ! -s $_codex_comp || $commands[codex] -nt $_codex_comp ]]; then
+            mkdir -p "''${_codex_comp:h}"
+            codex completion zsh >| "$_codex_comp" 2>/dev/null
+          fi
+          source "$_codex_comp"
+          unset _codex_comp
+        fi
       ''
       (lib.mkAfter ''
         bindkey '^r' atuin-search
