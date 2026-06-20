@@ -14,8 +14,8 @@
       mkHome = { system, username, homeDirectory }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
-          modules = [
-            ./home.nix
+          # 模块列表从 lib/default.nix 取(唯一的"加模块"改动点)
+          modules = (import ./lib).modules ++ [
             { home.username = username; home.homeDirectory = homeDirectory; }
           ];
         };

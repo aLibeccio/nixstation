@@ -154,5 +154,5 @@ in
   # 加了之后 carapace 会把 claude 也纳入补全,fzf-tab 自动套上模糊菜单:
   #   claude --d<Tab> → --dangerously-skip-permissions / --debug ...
   #   claude --model <Tab> → opus/sonnet/fable;claude <Tab> → mcp/auth/... 子命令
-  home.file.${carapaceSpecTarget}.source = ./claude.carapace.yaml;
+  home.file.${carapaceSpecTarget}.source = ./assets/claude.carapace.yaml;
 }
