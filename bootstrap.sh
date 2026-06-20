@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
-REPO_FLAKE="github:aLibeccio/nix-config"
-REPO_HTTPS="https://github.com/aLibeccio/nix-config.git"
+REPO_FLAKE="github:aLibeccio/nixstation"
+REPO_HTTPS="https://github.com/aLibeccio/nixstation.git"
 
 # 1) 没有 nix 就装 Determinate Nix(非交互),并在当前进程内可用
 if ! command -v nix >/dev/null 2>&1; then
@@ -14,6 +14,6 @@ fi
 nix run home-manager/master -- switch -b backup --flake "${REPO_FLAKE}#generic" --impure
 
 # 3) 拉一份本地工作副本,方便以后编辑/push(用 nix 提供的 git,无需预装)
-[ -d "$HOME/nix-config" ] || nix run nixpkgs#git -- clone "${REPO_HTTPS}" "$HOME/nix-config"
+[ -d "$HOME/nixstation" ] || nix run nixpkgs#git -- clone "${REPO_HTTPS}" "$HOME/nixstation"
 
-echo "✅ 完成。打开新终端即可用。以后改配置:编辑 ~/nix-config 后运行  home-manager switch --flake ~/nix-config#generic --impure"
+echo "✅ 完成。打开新终端即可用。以后改配置:编辑 ~/nixstation 后运行  home-manager switch --flake ~/nixstation#generic --impure"

@@ -39,7 +39,7 @@ in
     };
 
     shellAliases = {
-      hms = "home-manager switch --flake ~/nix-config#generic --impure";
+      hms = "home-manager switch --flake ~/nixstation#generic --impure";
     };
 
     # 原 ~/.zprofile 的内容迁移到这里(登录 shell)

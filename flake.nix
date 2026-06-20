@@ -33,7 +33,7 @@
         # "yuu@workmac" = mkHome { system = "aarch64-darwin"; username = "yuu"; homeDirectory = "/Users/yuu"; };
       };
 
-      # 项目级开发环境模板:`nix flake init -t ~/nix-config#<lang>` 起 devShell + direnv(.envrc)
+      # 项目级开发环境模板:`nix flake init -t ~/nixstation#<lang>` 起 devShell + direnv(.envrc)
       # 来源 modules/dev-envs/templates/;direnv/nix-direnv 已在 home/shell.nix 启用。
       templates = {
         python = { path = ./modules/dev-envs/templates/python; description = "Python dev shell (python3 + uv)"; };

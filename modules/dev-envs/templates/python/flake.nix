@@ -1,7 +1,7 @@
 # Python 项目开发环境模板(用 uv 管依赖)
 #
 # 用法:
-#   nix flake init -t ~/nix-config#python   # 在项目目录里生成本 flake.nix + .envrc
+#   nix flake init -t ~/nixstation#python   # 在项目目录里生成本 flake.nix + .envrc
 #   direnv allow                            # 让 direnv 自动加载下面的 devShell
 # 之后进入目录就自动有 python3 + uv;手动进入可用 `nix develop`。
 #

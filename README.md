@@ -1,4 +1,4 @@
-# nix-config — 我的 Nix / home-manager 配置
+# nixstation — 我的 Nix / home-manager 配置
 
 一份配置管理多设备的 CLI 环境(包 + shell + git/helix/zellij 设置),用 **Determinate Nix + 独立 home-manager(flake)** 实现,公开同步在本仓库。
 
@@ -6,14 +6,14 @@
 
 | 操作 | 命令 |
 |---|---|
-| 应用配置(本机) | `hms`(= `home-manager switch --flake ~/nix-config#generic --impure`) |
-| 上传改动 | `cd ~/nix-config && git add -A && git commit -m '...' && git push` |
-| 别的机器拉更新 | `git -C ~/nix-config pull && hms` |
-| 升级所有工具版本 | `cd ~/nix-config && nix flake update && hms`,再 push |
-| **新设备一条命令接入** | `curl -fsSL https://raw.githubusercontent.com/aLibeccio/nix-config/main/bootstrap.sh \| sh` |
+| 应用配置(本机) | `hms`(= `home-manager switch --flake ~/nixstation#generic --impure`) |
+| 上传改动 | `cd ~/nixstation && git add -A && git commit -m '...' && git push` |
+| 别的机器拉更新 | `git -C ~/nixstation pull && hms` |
+| 升级所有工具版本 | `cd ~/nixstation && nix flake update && hms`,再 push |
+| **新设备一条命令接入** | `curl -fsSL https://raw.githubusercontent.com/aLibeccio/nixstation/main/bootstrap.sh \| sh` |
 
 > ⚠️ 新增 `.nix` 文件记得先 `git add`(flake 只认 git 跟踪的文件)。
-> ⚠️ 配置文件(`~/.config/git/config`、`~/.config/helix/config.toml` 等)现在是指向 Nix 的只读软链 —— **改设置 = 改 `~/nix-config` 里的 `.nix` 再 `hms`**,别手编辑。
+> ⚠️ 配置文件(`~/.config/git/config`、`~/.config/helix/config.toml` 等)现在是指向 Nix 的只读软链 —— **改设置 = 改 `~/nixstation` 里的 `.nix` 再 `hms`**,别手编辑。
 
 ## 文件结构(模块化)
 
@@ -28,7 +28,7 @@
   - `homebrew/` —— `Brewfile` 精简到 cask/字体 + 幂等 `brew bundle`(运行时交给 Nix)
   - `agent-config/` —— 幂等注入 Claude/Codex **可复现配置切片**(settings/model;不接管整文件、不碰机器状态)
   - `memory-sync/` —— `rclone bisync ~/data` 跨设备同步共享记忆(需先 `rclone config` 配名为 `agentmemory` 的 remote,否则整体 no-op;数据不进仓库)
-  - `dev-envs/templates/` —— `nix flake init -t ~/nix-config#<python|node|rust|go|generic>` 起项目 devShell + direnv
+  - `dev-envs/templates/` —— `nix flake init -t ~/nixstation#<python|node|rust|go|generic>` 起项目 devShell + direnv
 - `bootstrap.sh` —— 新机一条命令脚本
 
 > 迁移到 Nix 运行时后,可手动清掉 brew 残留:`brew uninstall node go golangci-lint python@3.14 python@3.13`。
@@ -65,12 +65,12 @@
 
 ## Nix 与系统
 
-- **`nh`** —— home-manager/nixos 操作助手 · `nh home switch ~/nix-config`、`nh clean all` · 更顺手地 switch / 清理旧代
+- **`nh`** —— home-manager/nixos 操作助手 · `nh home switch ~/nixstation`、`nh clean all` · 更顺手地 switch / 清理旧代
 - **`nom`** (nix-output-monitor) —— 构建进度美化 · `nom build …` · 看 nix 构建进度更直观
 - **`nixd`** —— Nix 语言服务器(LSP) · 编辑器自动用(helix 已接) · 写 `.nix` 时补全/跳转/诊断
 - **`nixfmt`** —— 官方 Nix 格式化 · `nixfmt f.nix` · 格式化 `.nix`(helix 保存时自动跑)
-- **`statix`** —— Nix 静态检查 · `statix check ~/nix-config`、`statix fix` · 发现/修 Nix 反模式
-- **`deadnix`** —— 找未使用的 Nix 代码 · `deadnix ~/nix-config` · 清理没用的绑定/参数
+- **`statix`** —— Nix 静态检查 · `statix check ~/nixstation`、`statix fix` · 发现/修 Nix 反模式
+- **`deadnix`** —— 找未使用的 Nix 代码 · `deadnix ~/nixstation` · 清理没用的绑定/参数
 - **`nix-tree`** —— 浏览依赖闭包 · `nix-tree` · 看包依赖了啥、谁让闭包变大
 - **`btop`** —— 系统监视器(top↑) · `btop` · 看 CPU/内存/进程/网络
 - **`procs`** —— 现代 `ps` · `procs firefox`、`procs --tree` · 查进程(带树/端口/搜索)

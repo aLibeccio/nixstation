@@ -1,7 +1,7 @@
 # Rust 项目开发环境模板(nixpkgs 的 rustc/cargo + rust-analyzer)
 #
 # 用法:
-#   nix flake init -t ~/nix-config#rust   # 在项目目录里生成本 flake.nix + .envrc
+#   nix flake init -t ~/nixstation#rust   # 在项目目录里生成本 flake.nix + .envrc
 #   direnv allow                          # 让 direnv 自动加载下面的 devShell
 # 之后进入目录就自动有 rustc/cargo/clippy/rust-analyzer;手动进入可用 `nix develop`。
 #
