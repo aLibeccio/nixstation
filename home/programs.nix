@@ -3,8 +3,7 @@
   # ── git:声明式管理 ~/.gitconfig ──
   programs.git = {
     enable = true;
-    userName = "aLibeccio"; # 想用真实姓名就改这里
-    userEmail = "alibeccioy@gmail.com";
+    # user.name / user.email 不在此写死(各机身份不同),由本地 ~/.gitconfig 提供。
     delta.enable = true; # 用刚装的 delta 做 diff 高亮
     aliases = {
       st = "status";

@@ -156,7 +156,7 @@
 
 # 声明式管理的程序设置(`programs.nix`)
 
-- **git** —— name/email、`delta` 做 diff 高亮、别名 `st/co/br/lg`、`pull.rebase`、`push.autoSetupRemote`;凭据助手用 `gh`
+- **git** —— `delta` 做 diff 高亮、别名 `st/co/br/lg`、`pull.rebase`、`push.autoSetupRemote`;凭据助手用 `gh`。身份(name/email)由本地 `~/.gitconfig` 提供
 - **gh** —— 保留 git 凭据助手(HTTPS push 免密)、默认协议 https
 - **helix** —— 主题、相对行号等;`.nix` 文件接 `nixd` + 保存自动 `nixfmt`
 - **zellij** —— 基础 `config.kdl`(`default_shell=zsh`;未开自动进 zellij)
