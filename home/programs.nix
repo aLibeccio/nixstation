@@ -4,18 +4,23 @@
   programs.git = {
     enable = true;
     # user.name / user.email 不在此写死(各机身份不同),由本地 ~/.gitconfig 提供。
-    delta.enable = true; # 用刚装的 delta 做 diff 高亮
-    aliases = {
-      st = "status";
-      co = "checkout";
-      br = "branch";
-      lg = "log --oneline --graph --decorate --all";
-    };
-    extraConfig = {
+    settings = {
+      alias = {
+        st = "status";
+        co = "checkout";
+        br = "branch";
+        lg = "log --oneline --graph --decorate --all";
+      };
       init.defaultBranch = "main";
       pull.rebase = true;
       push.autoSetupRemote = true; # 首次 push 自动建立 upstream
     };
+  };
+
+  # delta:git diff 高亮(新版 home-manager 已从 programs.git.delta 拆为独立模块)
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true; # 设为 git 的 diff pager(自动启用已弃用,需显式开启)
   };
 
   # ── gh:保留 git 凭据助手(否则接管 .gitconfig 会让 HTTPS push 失去鉴权) ──
