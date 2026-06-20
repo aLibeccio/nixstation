@@ -67,11 +67,28 @@ in
         /opt/homebrew/bin/npm install -g @agentmemory/agentmemory || true
       fi
     '';
-    # P2: 注册 headroom MCP(CCR 可逆取回)到 Claude Code。codex 的 MCP 由 shell.nix
-    # 的 codex() 自愈分支在 provider 注入时一并注册(本版本 `mcp install` 暂不支持 codex)。
-    installHeadroomMcpClaude = lib.hm.dag.entryAfter [ "installHeadroom" ] ''
-      if [ -x "$HOME/.local/bin/headroom" ]; then
-        "$HOME/.local/bin/headroom" mcp install --agent claude --proxy-url http://127.0.0.1:8787 >/dev/null 2>&1 || true
+    # 幂等注册整套 harness MCP 到 Claude Code(~/.claude.json)和 Codex(~/.codex/config.toml),
+    # 让新机器 `hms` 自动重建 MCP 拓扑(配置文件本身每机本地,这里用注册动作实现「跟仓库同步」)。
+    # 每条都先 grep 守卫:已存在则跳过,所以老机器上全是 no-op。
+    registerHarnessMcps = lib.hm.dag.entryAfter [ "installHeadroom" "installAgentmemory" ] ''
+      C="$HOME/.local/bin/claude"; X="$HOME/.local/bin/codex"
+      HR="$HOME/.local/bin/headroom"; AM=/opt/homebrew/bin/agentmemory
+      CJ="$HOME/.claude.json"; CT="$HOME/.codex/config.toml"
+      # agentmemory(记忆)
+      if [ -x "$AM" ]; then
+        grep -q '"agentmemory"' "$CJ" 2>/dev/null || "$AM" connect claude-code >/dev/null 2>&1 || true
+        grep -q 'mcp_servers.agentmemory' "$CT" 2>/dev/null || "$AM" connect codex >/dev/null 2>&1 || true
+      fi
+      # headroom MCP(CCR 取回);codex 的 headroom MCP 由 shell.nix 的 codex() 自愈分支注入
+      [ -x "$HR" ] && { grep -q '"headroom"' "$CJ" 2>/dev/null || "$HR" mcp install --agent claude --proxy-url http://127.0.0.1:8787 >/dev/null 2>&1 || true; }
+      # context7(最新库文档)+ kubernetes(只读,EKS 排障)
+      if [ -x "$C" ]; then
+        grep -q '"context7"'   "$CJ" 2>/dev/null || "$C" mcp add -s user context7   -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
+        grep -q '"kubernetes"' "$CJ" 2>/dev/null || "$C" mcp add -s user kubernetes -- npx -y kubernetes-mcp-server@latest --read-only >/dev/null 2>&1 || true
+      fi
+      if [ -x "$X" ]; then
+        grep -q 'mcp_servers.context7'   "$CT" 2>/dev/null || "$X" mcp add context7   -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
+        grep -q 'mcp_servers.kubernetes' "$CT" 2>/dev/null || "$X" mcp add kubernetes -- npx -y kubernetes-mcp-server@latest --read-only >/dev/null 2>&1 || true
       fi
     '';
   };

@@ -185,6 +185,10 @@ carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `
   - **codex**:靠注入 `~/.codex/config.toml` 的 provider 路由(codex 无视 `OPENAI_BASE_URL`,必须用 config provider);wrapper 仅在 provider 缺失时自愈补注入。
 - **CCR 取回**:headroom MCP 已注册进两个 agent(claude.json + codex config),压缩留下标记后 agent 可调 `headroom_retrieve` 取回原文 —— 排障保真关键。
 - 记忆走 agentmemory,headroom 自身 memory **不开**,两者不冲突。
+- **知识/基础设施 MCP**(两个 agent 都接,经 `services.nix` 幂等 activation 注册,新机 `hms` 自动重建):
+  - **context7**(`@upstash/context7-mcp`,免 key)—— 按需注入最新库/框架文档,减少过时 API 臆造。
+  - **kubernetes**(`kubernetes-mcp-server --read-only`)—— 让 agent 查集群状态/资源,贴合 EKS 排障。**默认严格只读**;生产环境真正的强制层是 K8s RBAC,建议另建只读 viewer kubeconfig(集群侧)再叠一层。
+- MCP 配置文件(`~/.claude.json`、`~/.codex/config.toml`)本身每机本地、且被两工具自行重写,故不由 nix 托管;靠 `services.nix` 的 `registerHarnessMcps` 幂等注册实现跨机复现。Claude Code 的按需工具加载(tool-search)能缓解多 MCP 的 token 开销。
 
 ## 用法
 
