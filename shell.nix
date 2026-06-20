@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 {
   # ── 让 home-manager 接管 zsh,并自动写好各工具的 shell 集成 ──
   programs.zsh = {
@@ -11,6 +11,10 @@
       theme = "";
     };
 
+    shellAliases = {
+      hms = "home-manager switch --flake ~/nix-config#generic --impure";
+    };
+
     # 原 ~/.zprofile 的内容迁移到这里(登录 shell)
     profileExtra = ''
       # Homebrew (Apple Silicon) — 仅在存在时加载,Linux 上自动跳过
@@ -18,10 +22,15 @@
       export PATH="$HOME/.local/bin:$PATH"
     '';
 
-    # 原 ~/.zshrc 末尾的自定义内容迁移到这里(交互 shell)
-    initContent = ''
-      export PATH="$HOME/.local/bin:$PATH"
-    '';
+    # 原 ~/.zshrc 自定义内容 + 把 Ctrl-R 固定给 atuin(最后执行,盖过 fzf)
+    initContent = lib.mkMerge [
+      ''
+        export PATH="$HOME/.local/bin:$PATH"
+      ''
+      (lib.mkAfter ''
+        bindkey '^r' atuin-search
+      '')
+    ];
   };
 
   # ── 需要 shell 集成才生效的工具,改用 programs.* 声明 ──
@@ -33,7 +42,6 @@
   programs.zoxide = {
     enable = true;
     enableZshIntegration = true; # z / zi 智能跳转
-    # options = [ "--cmd cd" ];  # 取消注释:让 cd 直接用 zoxide
   };
 
   programs.atuin = {
@@ -43,7 +51,7 @@
 
   programs.starship = {
     enable = true;
-    enableZshIntegration = true; # 提示符(替代你手写的 starship init)
+    enableZshIntegration = true;
   };
 
   programs.direnv = {

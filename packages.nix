@@ -57,7 +57,7 @@
       shellcheck
       yamlfmt
       pre-commit
-      gh # GitHub CLI
+      # gh 移到 programs.nix(programs.gh,含 git 凭据助手)
       lazygit # fast terminal UI for git
       delta # syntax-highlighted git diffs (pairs with bat)
       difftastic # structural (syntax-aware) diff: difft
