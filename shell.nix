@@ -93,13 +93,21 @@ in
         # 仅当 headroom 装好时才定义,没装的机器自动跳过(plain claude/codex)。
         if (( $+commands[headroom] )); then
           export HEADROOM_TELEMETRY=off   # 关掉匿名遥测(与 launchd daemon 一致)
+          # claude：纯环境变量直连常驻 proxy(:8787)。实测比每次 `headroom wrap` 快 ~4.7×
+          # (37ms vs 175ms),且零额外子进程。压缩在 proxy 侧发生,CCR 取回靠 headroom MCP。
           claude() {
-            if [ -n "$HEADROOM_OFF" ]; then command claude "$@"; return; fi
-            command headroom wrap claude --no-proxy --no-mcp --no-serena --no-context-tool -- "$@"
+            [ -n "$HEADROOM_OFF" ] && { command claude "$@"; return; }
+            ANTHROPIC_BASE_URL=http://127.0.0.1:8787 command claude "$@"
           }
+          # codex：靠注入 ~/.codex/config.toml 的 provider 路由(codex 无视 OPENAI_BASE_URL,
+          # 必须用 config provider)。直接跑比每次 wrap 快 ~7.7×(21ms vs 161ms),且避免每次
+          # 重写 config 的并发竞态。下面仅在 provider 缺失(被 HEADROOM_OFF unwrap / 新机器)时
+          # 才补注入一次(同时注册 headroom MCP)。
           codex() {
             if [ -n "$HEADROOM_OFF" ]; then command headroom unwrap codex >/dev/null 2>&1; command codex "$@"; return; fi
-            command headroom wrap codex --no-proxy --no-mcp --no-serena --no-context-tool -- "$@"
+            grep -q 'model_provider = "headroom"' "$HOME/.codex/config.toml" 2>/dev/null \
+              || command headroom wrap codex --no-proxy --no-serena --no-context-tool -- --version >/dev/null 2>&1
+            command codex "$@"
           }
         fi
       ''
