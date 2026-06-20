@@ -115,12 +115,14 @@ in
       fi
     '';
 
-    # headroom:uv tool 装(锁版本),版本不符才装(--force 覆盖旧版)。
+    # headroom:uv tool 装(锁版本),版本不符才装。用 uv 自管的 python,不依赖
+    # 系统/brew/Nix 的 python —— 那些一旦被卸载或 GC,venv 就失效。
     installHeadroom = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       have="$("${hrBin}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)"
       if [ "$have" != "${hrVersion}" ]; then
-        echo "[activation] installing headroom==${hrVersion} via uv (one-time, pulls PyTorch; have=$have)..."
-        ${pkgs.uv}/bin/uv tool install --force --python 3.13 "${hrSpec}" || true
+        echo "[activation] installing headroom==${hrVersion} via uv (pulls PyTorch; have=$have)..."
+        ${pkgs.uv}/bin/uv python install 3.13 || true
+        UV_PYTHON_PREFERENCE=only-managed ${pkgs.uv}/bin/uv tool install --force --python 3.13 "${hrSpec}" || true
       fi
     '';
 
