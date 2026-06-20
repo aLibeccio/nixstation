@@ -184,19 +184,19 @@ carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `
 
 | 层 | 工具 | 端口/守护 | 作用 |
 |---|---|---|---|
-| **记忆** | [agentmemory](https://github.com/rohitg00/agentmemory)(npm `@agentmemory/agentmemory`) | REST `:3111`、viewer `:3113`、launchd | Claude↔Codex **双向共享**项目理解/决策/约定;一个总结另一个自动用上 |
-| **压缩** | [headroom](https://github.com/chopratejas/headroom)(uv `headroom-ai[proxy,ml,pytorch-mps]`) | proxy `:8787`、launchd | 工具输出/日志/文件进 LLM 前压缩(含 ML,MPS 加速),省 50-90% token、上下文更长 |
+| **记忆** | [agentmemory](https://github.com/rohitg00/agentmemory)(`@agentmemory/agentmemory@0.9.27`,跑在 **Nix node**) | REST `:3111`、viewer `:3113`、launchd/systemd | Claude↔Codex **双向共享**项目理解/决策/约定;一个总结另一个自动用上 |
+| **压缩** | [headroom](https://github.com/chopratejas/headroom)(uv `headroom-ai[proxy,ml,pytorch-mps]==0.26.0`) | proxy `:8787`、launchd/systemd | 工具输出/日志/文件进 LLM 前压缩(含 ML,MPS 加速),省 50-90% token、上下文更长 |
 
-- 两个守护进程在 `services.nix`(home-manager `launchd.agents`,仅 macOS,`KeepAlive`;ProgramArguments 带轮询式存在性保护,新机首启二进制没装好也不 crash-loop)。
+- 两个守护进程在 `modules/agent-harness/default.nix`(`launchd.agents`[macOS] / `systemd.user.services`[Linux],`KeepAlive`;ProgramArguments 带轮询式存在性保护,新机首启二进制没装好也不 crash-loop)。agentmemory **跑在 Nix node**(装进 `~/.npm-global`,脱钩 Homebrew、版本锁 0.9.27)。
 - `claude`/`codex` 的透明 wrapper 在 `shell.nix`,走**最省开销**的路径(实测比每次 `headroom wrap` 快 ~4.7×/7.7×):
   - **claude**:只设 `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` 跑原生(routing 在 env)。
   - **codex**:靠注入 `~/.codex/config.toml` 的 provider 路由(codex 无视 `OPENAI_BASE_URL`,必须用 config provider);wrapper 仅在 provider 缺失时自愈补注入。
 - **CCR 取回**:headroom MCP 已注册进两个 agent(claude.json + codex config),压缩留下标记后 agent 可调 `headroom_retrieve` 取回原文 —— 排障保真关键。
 - 记忆走 agentmemory,headroom 自身 memory **不开**,两者不冲突。
-- **知识/基础设施 MCP**(两个 agent 都接,经 `services.nix` 幂等 activation 注册,新机 `hms` 自动重建):
+- **知识/基础设施 MCP**(两个 agent 都接,经 `modules/agent-harness` 幂等 activation 注册,新机 `hms` 自动重建):
   - **context7**(`@upstash/context7-mcp`,免 key)—— 按需注入最新库/框架文档,减少过时 API 臆造。
   - **kubernetes**(`kubernetes-mcp-server --read-only`)—— 让 agent 查集群状态/资源,贴合 EKS 排障。**默认严格只读**;生产环境真正的强制层是 K8s RBAC,建议另建只读 viewer kubeconfig(集群侧)再叠一层。
-- MCP 配置文件(`~/.claude.json`、`~/.codex/config.toml`)本身每机本地、且被两工具自行重写,故不由 nix 托管;靠 `services.nix` 的 `registerHarnessMcps` 幂等注册实现跨机复现。Claude Code 的按需工具加载(tool-search)能缓解多 MCP 的 token 开销。
+- MCP 配置文件(`~/.claude.json`、`~/.codex/config.toml`)本身每机本地、且被两工具自行重写,故不由 nix 托管;靠 `modules/agent-harness` 的 `registerHarnessMcps`(用各 agent 原生 `mcp add` / `connect` CLI + grep 守卫)幂等注册实现跨机复现。Claude Code 的按需工具加载(tool-search)能缓解多 MCP 的 token 开销。
 
 ## 用法
 
@@ -207,12 +207,13 @@ carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `
 
 ## 跨机器复现
 
-`services.nix` 带幂等 `home.activation`:`hms` 时若二进制缺失,会自动用 `uv` 装 headroom、用 `npm -g` 装 agentmemory,然后 launchd 起两个守护进程。所以新机器 `bootstrap.sh` + `hms` 即可重建整套(首次会拉 PyTorch,稍久)。
+`modules/agent-harness/default.nix` 带幂等 `home.activation`:`hms` 时**按锁定版本**自动装(headroom 用 `uv`;agentmemory 用 **Nix node 的 npm** 装进 `~/.npm-global`),再由 launchd[macOS]/systemd[Linux] 起两个守护进程。运行时(node/go/python)也从 Nix 装,**Homebrew 只剩 cask/字体**(旧 brew node/go/python@3.14/mise/gh 已清理;`python@3.13` 保留给 headroom 的 uv venv)。所以新机器 `bootstrap.sh` + `hms` 即可重建整套(首次会拉 PyTorch + node 依赖,稍久)。
 
 ## 注意
 
 - headroom 通过 proxy 透传 **Claude / Codex 的订阅登录态**(已验证),无需 API key。
 - `~/.claude.json` 只多了 headroom MCP(CCR 取回);claude 的路由走环境变量,不写其它。`~/.codex/config.toml` 注入了 headroom provider(指向 `:8787`)+ MCP,依赖 proxy 常驻(KeepAlive 兜底;`HEADROOM_OFF=1 codex` 临时 unwrap 走原生)。
 - 未启用 headroom 的 rtk「context-tool」(它会注册 Bash hooks 在源头裁剪 shell 输出 —— 可能有损且不可取回,排障时怕丢精确日志,故不开;proxy 压缩有 CCR 兜底,更安全)。
-- 仅 macOS:`services.nix` 的 launchd 部分 Linux 上自动跳过(Linux 用 systemd,未配)。
-- agent 的 MCP/记忆数据是本机状态(SQLite),不在本仓库;仓库只管「怎么装、怎么起」。
+- 跨平台:macOS 用 launchd、Linux 用 `systemd.user.services`(同 entrypoint,均已在 `modules/agent-harness` 定义)。
+- agent 的记忆数据(`~/data`,文件型 KV)是本机状态,**不进仓库**;**跨设备同步**由 `modules/memory-sync` 用 `rclone bisync` 单独通道做(需先 `rclone config` 配名为 `agentmemory` 的 remote,否则整体 no-op)。仓库只管「怎么装、怎么起、怎么同步」。
+- daemon plist 变更后,macOS launchd 重载偶尔报 `I/O error (code 5)` 使服务没起来;手动 `launchctl bootout gui/$UID/<label>` 再 `launchctl bootstrap gui/$UID <plist>` 即可(全新机器首次 bootstrap 不会遇到)。
