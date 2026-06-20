@@ -1,6 +1,6 @@
-# nixstation — 我的 Nix / home-manager 配置
+# nixstation
 
-一份配置管理多设备的 CLI 环境(包 + shell + git/helix/zellij 设置),用 **Determinate Nix + 独立 home-manager(flake)** 实现,公开同步在本仓库。
+一条命令在任意 mac / Linux 上拉起**整台开发机**:几十个现代 CLI、配好的 zsh、git/helix/zellij 等设置,一套**跨 AI agent 协作 harness**(Claude Code ↔ Codex 共享记忆 + 上下文压缩),以及**项目级 dev 环境模板**。用 **Determinate Nix + home-manager(flake)** 声明式实现、多设备同步;新机接入只要一条命令(见下「用法速查」)。
 
 ## 用法速查
 
@@ -24,15 +24,12 @@
 - `home/` —— home-manager 基础
   - `default.nix`(import 下面几个)· `packages.nix`(CLI 清单,含 Nix 为准的 node/go/python 运行时)· `shell.nix`(zsh 集成 + `claude`/`codex` 透明走 headroom 的 wrapper)· `programs.nix`(git/gh/helix/zellij)· `assets/claude.carapace.yaml`
 - `modules/` —— 各能力模块(drop-in)
-  - `agent-harness/` —— 两个常驻 daemon:**agentmemory** 跨 agent 记忆(:3111,跑在 Nix node)+ **headroom** 上下文压缩(:8787);幂等装二进制(npm/uv,锁版本)+ 用原生 CLI 注册 MCP(agentmemory/headroom/context7/kubernetes)
+  - `agent-harness/` —— 两个常驻 daemon:**agentmemory** 跨 agent 记忆(:3111)+ **headroom** 上下文压缩(:8787);并接好 context7 / kubernetes 等 MCP
   - `homebrew/` —— `Brewfile` 精简到 cask/字体 + 幂等 `brew bundle`(运行时交给 Nix)
   - `agent-config/` —— 幂等注入 Claude/Codex **可复现配置切片**(settings/model;不接管整文件、不碰机器状态)
   - `memory-sync/` —— `rclone bisync ~/data` 跨设备同步共享记忆(需先 `rclone config` 配名为 `agentmemory` 的 remote,否则整体 no-op;数据不进仓库)
   - `dev-envs/templates/` —— `nix flake init -t ~/nixstation#<python|node|rust|go|generic>` 起项目 devShell + direnv
 - `bootstrap.sh` —— 新机一条命令脚本
-
-> 迁移到 Nix 运行时后,可手动清掉 brew 残留:`brew uninstall node go golangci-lint python@3.14 python@3.13`。
-> 跨设备记忆同步是本仓库第一个真正的 secret(rclone remote 凭据,机器本地、不进仓库);日后可上 sops/age(预留 `modules/secrets`)。
 
 ---
 
@@ -142,17 +139,9 @@
 
 > zsh 还开了 **autosuggestions**(灰字历史建议,`→` 接受)、**syntax-highlighting**(命令边打边高亮)和 **fzf-tab**(Tab 菜单变 fzf 模糊选择),配置都在 `shell.nix`。补全链路:Nix 工具自带补全 + **carapace** 统一补强候选 → **fzf-tab** 提供可模糊筛选的菜单 UI。
 
-### 给 carapace 里没有的命令加补全(claude / codex 两种典型做法)
+### 给 carapace 没有的命令加补全
 
-carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `codex <Tab>` 默认补不出东西。按"命令有没有自带补全"分两种做法,**两种最终都经 fzf-tab 弹模糊菜单**:
-
-**A. 命令自带 `completion` 生成器(首选)—— 以 `codex` 为例**
-`codex completion zsh` 能生成完整准确的 zsh 补全,且**随版本自动更新**。`shell.nix` 把它缓存到 `~/.cache/zsh/codex-completion.zsh`(只在 codex 二进制更新时重新生成),平时开 shell 只 source、不跑 codex;没装 codex 的机器自动跳过。效果:`codex <Tab>`→`exec/review/login/mcp/...` 子命令,`codex --<Tab>`→全部 flag。
-
-**B. 命令没有自带补全 —— 以 `claude` 为例,给 carapace 写 spec**
-`claude` 既不在 carapace 库里、自身也没补全,于是手写一份 carapace **spec**:本仓库的 `claude.carapace.yaml`(全部 flag + `--model`/`--permission-mode` 等取值 + 子命令)。`shell.nix` 用 `home.file` 放到 carapace 的 spec 目录(macOS `~/Library/Application Support/carapace/specs/`,Linux `~/.config/carapace/specs/`),跟仓库一起多设备同步。效果:`claude --d`→**所有 `--d` 开头的 flag**(进菜单后可再模糊缩小),`claude --model `→`opus/sonnet/fable`,`claude `→子命令。
-
-**再加别的命令**:先看它有没有 `xxx completion zsh` —— 有就照 codex 那段加"缓存 + source";没有就照 `claude.carapace.yaml` 写 spec(格式 `carapace --schema`,可用 `carapace <cmd> export <cmd> <参数>` 现场验)。
+`claude` / `codex` 的补全已预接好(`claude --d<Tab>` 列出 flag、`codex <Tab>` 列子命令)。想给别的 carapace 库里没有的 CLI 加补全:命令自带 `xxx completion zsh` 的就缓存后 source(见 `shell.nix` 里 codex 的写法),没有的就写一份 carapace spec(见 `claude.carapace.yaml`)。
 
 ## 编辑器
 
@@ -176,44 +165,23 @@ carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `
 
 ---
 
-# 跨 agent harness（agentmemory 记忆 + headroom 压缩）
+# 跨 AI agent harness(共享记忆 + 上下文压缩)
 
-让 **Claude Code** 和 **Codex** 这两个 AI 编码 agent:① 共享同一份项目记忆;② 直接敲 `claude`/`codex` 就透明走上下文压缩省 token。两层互补、互不干扰,都声明式管理、跨机器可复现。
+让 **Claude Code** 和 **Codex** 两个 AI 编码 agent:① 共享同一份项目记忆(一个总结、另一个自动用上);② 直接敲 `claude` / `codex` 就**透明走上下文压缩**,省 token、上下文更长。两层互补、互不干扰,跨机器可复现。
 
-## 两层
+| 层 | 作用 | 端口 |
+|---|---|---|
+| **记忆**(agentmemory) | Claude ↔ Codex 双向共享项目理解 / 决策 / 约定 | `:3111`(viewer `:3113`) |
+| **压缩**(headroom) | 工具输出 / 日志进 LLM 前压缩(ML + MPS 加速),省 50–90% token | proxy `:8787` |
 
-| 层 | 工具 | 端口/守护 | 作用 |
-|---|---|---|---|
-| **记忆** | [agentmemory](https://github.com/rohitg00/agentmemory)(`@agentmemory/agentmemory@0.9.27`,跑在 **Nix node**) | REST `:3111`、viewer `:3113`、launchd/systemd | Claude↔Codex **双向共享**项目理解/决策/约定;一个总结另一个自动用上 |
-| **压缩** | [headroom](https://github.com/chopratejas/headroom)(uv `headroom-ai[proxy,ml,pytorch-mps]==0.26.0`) | proxy `:8787`、launchd/systemd | 工具输出/日志/文件进 LLM 前压缩(含 ML,MPS 加速),省 50-90% token、上下文更长 |
-
-- 两个守护进程在 `modules/agent-harness/default.nix`(`launchd.agents`[macOS] / `systemd.user.services`[Linux],`KeepAlive`;ProgramArguments 带轮询式存在性保护,新机首启二进制没装好也不 crash-loop)。agentmemory **跑在 Nix node**(装进 `~/.npm-global`,脱钩 Homebrew、版本锁 0.9.27)。
-- `claude`/`codex` 的透明 wrapper 在 `shell.nix`,走**最省开销**的路径(实测比每次 `headroom wrap` 快 ~4.7×/7.7×):
-  - **claude**:只设 `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` 跑原生(routing 在 env)。
-  - **codex**:靠注入 `~/.codex/config.toml` 的 provider 路由(codex 无视 `OPENAI_BASE_URL`,必须用 config provider);wrapper 仅在 provider 缺失时自愈补注入。
-- **CCR 取回**:headroom MCP 已注册进两个 agent(claude.json + codex config),压缩留下标记后 agent 可调 `headroom_retrieve` 取回原文 —— 排障保真关键。
-- 记忆走 agentmemory,headroom 自身 memory **不开**,两者不冲突。
-- **知识/基础设施 MCP**(两个 agent 都接,经 `modules/agent-harness` 幂等 activation 注册,新机 `hms` 自动重建):
-  - **context7**(`@upstash/context7-mcp`,免 key)—— 按需注入最新库/框架文档,减少过时 API 臆造。
-  - **kubernetes**(`kubernetes-mcp-server --read-only`)—— 让 agent 查集群状态/资源,贴合 EKS 排障。**默认严格只读**;生产环境真正的强制层是 K8s RBAC,建议另建只读 viewer kubeconfig(集群侧)再叠一层。
-- MCP 配置文件(`~/.claude.json`、`~/.codex/config.toml`)本身每机本地、且被两工具自行重写,故不由 nix 托管;靠 `modules/agent-harness` 的 `registerHarnessMcps`(用各 agent 原生 `mcp add` / `connect` CLI + grep 守卫)幂等注册实现跨机复现。Claude Code 的按需工具加载(tool-search)能缓解多 MCP 的 token 开销。
+外加两个知识 / 基础设施 MCP(两个 agent 都接):**context7**(免 key,按需注入最新库文档、减少过时 API 臆造)、**kubernetes**(只读,查集群状态、贴合 EKS 排障)。
 
 ## 用法
 
-- **照常敲** `claude` / `codex` 即可 —— 自动走压缩 + 共享记忆(改了 `shell.nix` 后**开新终端**生效)。
+- **照常敲** `claude` / `codex` —— 自动走压缩 + 共享记忆(改配置后**开新终端**生效)。
 - **临时绕过压缩**:`HEADROOM_OFF=1 claude …`(走原生)。
-- **看/删记忆**:浏览器开 `http://localhost:3113`(agentmemory viewer);或在 agent 里 `/recall`、`/remember`、`/forget`。
-- **看压缩效果**:`headroom perf` 或 `curl -s localhost:8787/stats`(真实压缩率在长日志/大上下文的排障场景最明显)。
+- **看 / 删记忆**:浏览器开 `http://localhost:3113`,或在 agent 里 `/recall`、`/remember`、`/forget`。
+- **看压缩效果**:`headroom perf`。
+- **跨设备同步记忆**:在每台机 `rclone config` 配一个名为 `agentmemory` 的云端 remote,记忆库 `~/data` 会自动双向同步(没配则不同步,无副作用)。
 
-## 跨机器复现
-
-`modules/agent-harness/default.nix` 带幂等 `home.activation`:`hms` 时**按锁定版本**自动装(headroom 用 `uv`;agentmemory 用 **Nix node 的 npm** 装进 `~/.npm-global`),再由 launchd[macOS]/systemd[Linux] 起两个守护进程。运行时(node/go/python)也从 Nix 装,**Homebrew 只剩 cask/字体**(旧 brew node/go/python@3.14/mise/gh 已清理;`python@3.13` 保留给 headroom 的 uv venv)。所以新机器 `bootstrap.sh` + `hms` 即可重建整套(首次会拉 PyTorch + node 依赖,稍久)。
-
-## 注意
-
-- headroom 通过 proxy 透传 **Claude / Codex 的订阅登录态**(已验证),无需 API key。
-- `~/.claude.json` 只多了 headroom MCP(CCR 取回);claude 的路由走环境变量,不写其它。`~/.codex/config.toml` 注入了 headroom provider(指向 `:8787`)+ MCP,依赖 proxy 常驻(KeepAlive 兜底;`HEADROOM_OFF=1 codex` 临时 unwrap 走原生)。
-- 未启用 headroom 的 rtk「context-tool」(它会注册 Bash hooks 在源头裁剪 shell 输出 —— 可能有损且不可取回,排障时怕丢精确日志,故不开;proxy 压缩有 CCR 兜底,更安全)。
-- 跨平台:macOS 用 launchd、Linux 用 `systemd.user.services`(同 entrypoint,均已在 `modules/agent-harness` 定义)。
-- agent 的记忆数据(`~/data`,文件型 KV)是本机状态,**不进仓库**;**跨设备同步**由 `modules/memory-sync` 用 `rclone bisync` 单独通道做(需先 `rclone config` 配名为 `agentmemory` 的 remote,否则整体 no-op)。仓库只管「怎么装、怎么起、怎么同步」。
-- daemon plist 变更后,macOS launchd 重载偶尔报 `I/O error (code 5)` 使服务没起来;手动 `launchctl bootout gui/$UID/<label>` 再 `launchctl bootstrap gui/$UID <plist>` 即可(全新机器首次 bootstrap 不会遇到)。
+> 整套(两个 daemon + MCP + 补全)随 `bootstrap.sh` + `hms` 在新机器上自动重建,无需手动配置;headroom 透传 Claude / Codex 自身的订阅登录态,无需额外 API key。
