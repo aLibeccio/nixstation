@@ -11,7 +11,14 @@
       theme = "";
     };
 
-    # 你 .zshrc 末尾的自定义内容迁移到这里
+    # 原 ~/.zprofile 的内容迁移到这里(登录 shell)
+    profileExtra = ''
+      # Homebrew (Apple Silicon) — 仅在存在时加载,Linux 上自动跳过
+      [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
+      export PATH="$HOME/.local/bin:$PATH"
+    '';
+
+    # 原 ~/.zshrc 末尾的自定义内容迁移到这里(交互 shell)
     initContent = ''
       export PATH="$HOME/.local/bin:$PATH"
     '';
