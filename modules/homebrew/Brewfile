@@ -1,0 +1,12 @@
+# Brewfile —— 精简版。职责边界:
+#   Homebrew 只管「Nix 不擅长或装不了的 macOS 原生东西」= GUI cask / 字体。
+#   运行时 (node / python / go / mise / uv / gh ...) 一律交给 Nix(见 home/packages.nix),
+#   这样跨机器可复现、版本由 flake.lock 锁定,不再依赖 brew 的全局可变状态。
+#
+# 因此这里 *只* 声明 cask/字体,*不* 声明任何 formula。
+# 旧机器上残留的 brew node/python@3.14/go/mise/gh 等 formula 不会被这个 Brewfile 触碰
+# (我们刻意不用 `brew bundle --cleanup`),需要时自己手动 `brew uninstall` 清理即可。
+
+# Nerd Font:终端 / starship / helix 的图标字形依赖。
+# macOS 用 cask 装到系统字体目录最省事(Nix 在 Linux 上改用 pkgs.nerd-fonts.meslo-lg)。
+cask "font-meslo-lg-nerd-font"

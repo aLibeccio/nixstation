@@ -5,9 +5,10 @@
   modules = [
     ../home # 基础:packages / shell / programs(home-manager 主配置)
     ../modules/agent-harness # 跨 agent harness:agentmemory + headroom 两个 daemon + MCP 注册
-    # ../modules/homebrew    # (后续)Brewfile 精简到 cask/字体
-    # ../modules/dev-envs    # (后续)Nix devshell 模板 + direnv
-    # ../modules/memory-sync # (后续)rclone bisync ~/data 跨设备记忆
+    ../modules/homebrew # Brewfile 精简到 cask/字体,运行时交给 Nix
+    ../modules/agent-config # Claude/Codex 可复现配置切片(幂等注入,不接管整文件)
+    ../modules/memory-sync # rclone bisync ~/data 跨设备记忆(agentmemory 共享记忆库)
+    # 注:dev-envs 是 flake 的 templates 输出(见 flake.nix),不是 home-manager 模块,不进此列表。
     # ../modules/secrets     # (推迟)sops/age,需要 API key 时再开
   ];
 }

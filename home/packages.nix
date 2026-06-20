@@ -66,6 +66,14 @@
       mise # polyglot runtime & tool-version manager (asdf successor)
       uv # fast Python pkg/tool manager (used to install headroom-ai for the agent harness)
 
+      # 语言运行时 —— Nix 为准(取代 Homebrew 的 node/go/python;见 modules/homebrew)。
+      # agent harness 的 agentmemory daemon 直接用 ${pkgs.nodejs_22},这里再放一份给交互/npx 用。
+      # 迁移后可 `brew uninstall node go golangci-lint python@3.14 python@3.13` 清理 brew 残留。
+      nodejs_22 # Node.js LTS(+ npm/npx)
+      go # Go 工具链
+      golangci-lint # Go linter(原 brew formula)
+      python3 # Python 解释器(headroom 自带 uv 管的 3.13;这个给通用交互用)
+
       # Infrastructure & Cloud
       k9s
       kubectl
@@ -102,6 +110,7 @@
       podman
       buildah # build OCI images without a daemon
       skopeo # inspect/copy container images
+      nerd-fonts.meslo-lg # macOS 用 Homebrew cask 装,Linux 这里用 Nix
     ]
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       # Container alternative
