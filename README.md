@@ -19,8 +19,9 @@
 
 - `flake.nix` —— 入口:依赖(nixpkgs / home-manager)+ `generic` 自动探测配置
 - `packages.nix` —— CLI 工具清单(下面详解)
-- `shell.nix` —— zsh + oh-my-zsh + starship/zoxide/atuin/fzf/direnv + carapace/fzf-tab 的 shell 集成
+- `shell.nix` —— zsh + oh-my-zsh + starship/zoxide/atuin/fzf/direnv + carapace/fzf-tab 的 shell 集成;以及 `claude`/`codex` 透明走 headroom 压缩的 wrapper(见文末跨 agent harness)
 - `programs.nix` —— 声明式管理 git / gh / helix / zellij 的设置
+- `services.nix` —— 跨 agent harness 的两个 launchd 守护进程(agentmemory 记忆 + headroom 压缩)+ 幂等装二进制的 activation(见文末)
 - `claude.carapace.yaml` —— 给 carapace 补的 `claude`(Claude Code)补全规格(见下文补全章节)
 - `home.nix` —— 主配置(import 上面几个)
 - `bootstrap.sh` —— 新机一条命令脚本
@@ -91,6 +92,7 @@
 - **`gitleaks`** —— 扫描密钥泄露 · `gitleaks detect` · 提交/推送前查有没有写进密钥(公开仓库必备)
 - **`just`** —— 命令运行器(现代 make) · `just`、`just build` · 在 `justfile` 里写项目常用任务
 - **`mise`** —— 多语言运行时/版本管理(asdf↑) · `mise use node@22`、`mise install` · 按项目管 node/python/go 等版本
+- **`uv`** —— 极快的 Python 包/工具管理器 · `uv tool install <pkg>`、`uv run …` · 装隔离的 Python CLI(本仓库用它装 headroom-ai,见文末跨 agent harness)
 
 ## 基础设施 / 云
 
@@ -163,3 +165,38 @@ carapace 内置 1000+ 命令,但有些新 CLI 不在库里,`claude --d<Tab>` / `
 - **zellij** —— 基础 `config.kdl`(`default_shell=zsh`;未开自动进 zellij)
 
 > 这些的设置都在 `programs.nix`,改完 `hms` 即生效并可同步到其它设备。
+
+---
+
+# 跨 agent harness（agentmemory 记忆 + headroom 压缩）
+
+让 **Claude Code** 和 **Codex** 这两个 AI 编码 agent:① 共享同一份项目记忆;② 直接敲 `claude`/`codex` 就透明走上下文压缩省 token。两层互补、互不干扰,都声明式管理、跨机器可复现。
+
+## 两层
+
+| 层 | 工具 | 端口/守护 | 作用 |
+|---|---|---|---|
+| **记忆** | [agentmemory](https://github.com/rohitg00/agentmemory)(npm `@agentmemory/agentmemory`) | REST `:3111`、viewer `:3113`、launchd | Claude↔Codex **双向共享**项目理解/决策/约定;一个总结另一个自动用上 |
+| **压缩** | [headroom](https://github.com/chopratejas/headroom)(uv `headroom-ai[proxy,ml,pytorch-mps]`) | proxy `:8787`、launchd | 工具输出/日志/文件进 LLM 前压缩(含 ML,MPS 加速),省 50-90% token、上下文更长 |
+
+- 两个守护进程在 `services.nix`(home-manager `launchd.agents`,仅 macOS,`KeepAlive`)。
+- `claude`/`codex` 的透明 wrapper 在 `shell.nix`(经 `headroom wrap … --no-proxy` 复用常驻 proxy)。
+- 记忆走 agentmemory,headroom 自身 memory **不开**,两者不冲突。
+
+## 用法
+
+- **照常敲** `claude` / `codex` 即可 —— 自动走压缩 + 共享记忆(改了 `shell.nix` 后**开新终端**生效)。
+- **临时绕过压缩**:`HEADROOM_OFF=1 claude …`(走原生)。
+- **看/删记忆**:浏览器开 `http://localhost:3113`(agentmemory viewer);或在 agent 里 `/recall`、`/remember`、`/forget`。
+- **看压缩效果**:`headroom perf` 或 `curl -s localhost:8787/stats`(真实压缩率在长日志/大上下文的排障场景最明显)。
+
+## 跨机器复现
+
+`services.nix` 带幂等 `home.activation`:`hms` 时若二进制缺失,会自动用 `uv` 装 headroom、用 `npm -g` 装 agentmemory,然后 launchd 起两个守护进程。所以新机器 `bootstrap.sh` + `hms` 即可重建整套(首次会拉 PyTorch,稍久)。
+
+## 注意
+
+- headroom 通过 proxy 透传 **Claude / Codex 的订阅登录态**(已验证),无需 API key。
+- `claude.json` 不被改(claude 走环境变量);`~/.codex/config.toml` 会被注入 headroom provider(指向 `:8787`),依赖 proxy 常驻(KeepAlive 兜底;`HEADROOM_OFF` 可临时 unwrap)。
+- 仅 macOS:`services.nix` 的 launchd 部分 Linux 上自动跳过(Linux 用 systemd,未配)。
+- agent 的 MCP/记忆数据是本机状态(SQLite),不在本仓库;仓库只管「怎么装、怎么起」。

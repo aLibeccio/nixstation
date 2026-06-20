@@ -64,6 +64,7 @@
       gitleaks # scan repos/commits for leaked secrets
       just # command runner (modern make for task recipes)
       mise # polyglot runtime & tool-version manager (asdf successor)
+      uv # fast Python pkg/tool manager (used to install headroom-ai for the agent harness)
 
       # Infrastructure & Cloud
       k9s

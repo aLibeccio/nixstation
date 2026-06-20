@@ -86,6 +86,22 @@ in
           source "$_codex_comp"
           unset _codex_comp
         fi
+
+        # ── headroom：让 claude / codex 透明走上下文压缩代理（省 token）──
+        # 复用 launchd 常驻的 headroom proxy(:8787)；记忆仍归 agentmemory(headroom 自身 memory 不开)。
+        # 逃生：HEADROOM_OFF=1 claude ...  → 走原生、不压缩。
+        # 仅当 headroom 装好时才定义,没装的机器自动跳过(plain claude/codex)。
+        if (( $+commands[headroom] )); then
+          export HEADROOM_TELEMETRY=off   # 关掉匿名遥测(与 launchd daemon 一致)
+          claude() {
+            if [ -n "$HEADROOM_OFF" ]; then command claude "$@"; return; fi
+            command headroom wrap claude --no-proxy --no-mcp --no-serena --no-context-tool -- "$@"
+          }
+          codex() {
+            if [ -n "$HEADROOM_OFF" ]; then command headroom unwrap codex >/dev/null 2>&1; command codex "$@"; return; fi
+            command headroom wrap codex --no-proxy --no-mcp --no-serena --no-context-tool -- "$@"
+          }
+        fi
       ''
       (lib.mkAfter ''
         bindkey '^r' atuin-search
