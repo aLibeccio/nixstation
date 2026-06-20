@@ -1,4 +1,16 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
+let
+  # fzf-tab 自带一个 C 加速模块。nixpkgs 在 macOS 上编出来的是 fzftab.so,
+  # 但 macOS 的 zsh 加载模块用的是 .bundle 后缀 → zmodload 找不到 → 每次开 shell
+  # 都会弹 "fzftab module needs to be rebuild?[Y/n]"(只读的 nix store 也无法重建)。
+  # 这里直接去掉该模块,改用 fzf-tab 自带的纯 zsh 回退:补全/着色一切正常,
+  # 仅超大候选列表渲染略慢。好处是系统/brew/nix 的 zsh、macOS/Linux 上都不会再弹提示。
+  fzfTab = pkgs.zsh-fzf-tab.overrideAttrs (old: {
+    postInstall = (old.postInstall or "") + ''
+      rm -rf "$out/share/fzf-tab/modules"
+    '';
+  });
+in
 {
   # ── 让 home-manager 接管 zsh,并自动写好各工具的 shell 集成 ──
   programs.zsh = {
@@ -31,6 +43,25 @@
     initContent = lib.mkMerge [
       ''
         export PATH="$HOME/.local/bin:$PATH"
+
+        # ── fzf-tab:把 Tab 补全菜单换成 fzf 模糊选择 ──
+        # 这段在 compinit(oh-my-zsh)之后、zsh-syntax-highlighting 之前执行,
+        # 正好满足 fzf-tab 的加载顺序要求;候选仍由 carapace 等提供,fzf-tab 只接管菜单 UI。
+        source ${fzfTab}/share/fzf-tab/fzf-tab.plugin.zsh
+        # 关掉 zsh 原生菜单,交给 fzf-tab(必须,否则会先弹原生菜单/抢不到补全)
+        zstyle ':completion:*' menu no
+        # oh-my-zsh 设了更具体的 ':completion:*:*:*:*:*' menu select,用同样的 pattern 覆盖掉
+        zstyle ':completion:*:*:*:*:*' menu no
+        # 分组描述格式,配合下面的 < > 在多组结果间切换
+        zstyle ':completion:*:descriptions' format '[%d]'
+        # 用文件颜色渲染候选(LS_COLORS 为空时无害)
+        zstyle ':completion:*' list-colors ''${(s.:.)LS_COLORS}
+        # 补全 cd 时用 eza 预览目录内容
+        zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always --icons=always $realpath'
+        # 多组结果时用 < / > 切换分组
+        zstyle ':fzf-tab:*' switch-group '<' '>'
+        # fzf 弹窗参数(60% 高度,底部弹出而非全屏)
+        zstyle ':fzf-tab:*' fzf-flags --height=60%
       ''
       (lib.mkAfter ''
         bindkey '^r' atuin-search
