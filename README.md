@@ -15,16 +15,24 @@
 > ⚠️ 新增 `.nix` 文件记得先 `git add`(flake 只认 git 跟踪的文件)。
 > ⚠️ 配置文件(`~/.config/git/config`、`~/.config/helix/config.toml` 等)现在是指向 Nix 的只读软链 —— **改设置 = 改 `~/nix-config` 里的 `.nix` 再 `hms`**,别手编辑。
 
-## 文件结构
+## 文件结构(模块化)
 
-- `flake.nix` —— 入口:依赖(nixpkgs / home-manager)+ `generic` 自动探测配置
-- `packages.nix` —— CLI 工具清单(下面详解)
-- `shell.nix` —— zsh + oh-my-zsh + starship/zoxide/atuin/fzf/direnv + carapace/fzf-tab 的 shell 集成;以及 `claude`/`codex` 透明走 headroom 压缩的 wrapper(见文末跨 agent harness)
-- `programs.nix` —— 声明式管理 git / gh / helix / zellij 的设置
-- `services.nix` —— 跨 agent harness 的两个 launchd 守护进程(agentmemory 记忆 + headroom 压缩)+ 幂等装二进制的 activation(见文末)
-- `claude.carapace.yaml` —— 给 carapace 补的 `claude`(Claude Code)补全规格(见下文补全章节)
-- `home.nix` —— 主配置(import 上面几个)
+> 加一个能力 = 在 `modules/` 下建目录 + 在 `lib/default.nix` 列表里加一行。
+
+- `flake.nix` —— 入口:依赖 + `generic` 自动探测配置(`--impure`)+ dev-envs `templates` 输出;模块列表从 `lib/` 取
+- `lib/default.nix` —— **模块注册表**(唯一的「加模块」改动点)
+- `home/` —— home-manager 基础
+  - `default.nix`(import 下面几个)· `packages.nix`(CLI 清单,含 Nix 为准的 node/go/python 运行时)· `shell.nix`(zsh 集成 + `claude`/`codex` 透明走 headroom 的 wrapper)· `programs.nix`(git/gh/helix/zellij)· `assets/claude.carapace.yaml`
+- `modules/` —— 各能力模块(drop-in)
+  - `agent-harness/` —— 两个常驻 daemon:**agentmemory** 跨 agent 记忆(:3111,跑在 Nix node)+ **headroom** 上下文压缩(:8787);幂等装二进制(npm/uv,锁版本)+ 用原生 CLI 注册 MCP(agentmemory/headroom/context7/kubernetes)
+  - `homebrew/` —— `Brewfile` 精简到 cask/字体 + 幂等 `brew bundle`(运行时交给 Nix)
+  - `agent-config/` —— 幂等注入 Claude/Codex **可复现配置切片**(settings/model;不接管整文件、不碰机器状态)
+  - `memory-sync/` —— `rclone bisync ~/data` 跨设备同步共享记忆(需先 `rclone config` 配名为 `agentmemory` 的 remote,否则整体 no-op;数据不进仓库)
+  - `dev-envs/templates/` —— `nix flake init -t ~/nix-config#<python|node|rust|go|generic>` 起项目 devShell + direnv
 - `bootstrap.sh` —— 新机一条命令脚本
+
+> 迁移到 Nix 运行时后,可手动清掉 brew 残留:`brew uninstall node go golangci-lint python@3.14 python@3.13`。
+> 跨设备记忆同步是本仓库第一个真正的 secret(rclone remote 凭据,机器本地、不进仓库);日后可上 sops/age(预留 `modules/secrets`)。
 
 ---
 
