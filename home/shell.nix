@@ -43,13 +43,16 @@ in
     profileExtra = ''
       # Homebrew (Apple Silicon) — 仅在存在时加载,Linux 上自动跳过
       [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
-      export PATH="$HOME/.local/bin:$PATH"
+      # npm 全局装到可写前缀(Nix node 默认 prefix 是只读 store);其 bin 上 PATH。
+      export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+      export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
     '';
 
     # 原 ~/.zshrc 自定义内容 + 把 Ctrl-R 固定给 atuin(最后执行,盖过 fzf)
     initContent = lib.mkMerge [
       ''
-        export PATH="$HOME/.local/bin:$PATH"
+        export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+        export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
 
         # ── fzf-tab:把 Tab 补全菜单换成 fzf 模糊选择 ──
         # 须在 compinit 之后、syntax-highlighting 之前加载(fzf-tab 的顺序要求)。

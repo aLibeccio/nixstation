@@ -134,7 +134,7 @@ in
       export PATH="${node}/bin:$PATH"
       C="$HOME/.local/bin/claude"
       # codex 可能装在 PATH 上不同前缀,多候选探测,缺失则留空跳过。
-      X=""; for c in "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null)" /opt/homebrew/bin/codex /usr/local/bin/codex; do [ -n "$c" ] && [ -x "$c" ] && { X="$c"; break; }; done
+      X=""; for c in "$HOME/.npm-global/bin/codex" "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null)" /opt/homebrew/bin/codex /usr/local/bin/codex; do [ -n "$c" ] && [ -x "$c" ] && { X="$c"; break; }; done
       HR="${hrBin}"; AM="${amBin}"
       CJ="$HOME/.claude.json"; CT="$HOME/.codex/config.toml"
       # agentmemory(记忆)
