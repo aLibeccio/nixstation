@@ -130,7 +130,11 @@ in
     # 用各 agent 的原生 CLI(mcp add / connect),已存在则 grep 守卫跳过 → 老机器全 no-op。
     # 配置文件本身每机本地,这里用「注册动作」实现跟仓库同步。
     registerHarnessMcps = lib.hm.dag.entryAfter [ "installHeadroom" "installAgentmemory" ] ''
-      C="$HOME/.local/bin/claude"; X="$HOME/.local/bin/codex"
+      # codex 是 node 应用;activation 的精简 PATH 不含 node,补上 Nix 固定的 node 才跑得起来。
+      export PATH="${node}/bin:$PATH"
+      C="$HOME/.local/bin/claude"
+      # codex 可能装在 PATH 上不同前缀,多候选探测,缺失则留空跳过。
+      X=""; for c in "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null)" /opt/homebrew/bin/codex /usr/local/bin/codex; do [ -n "$c" ] && [ -x "$c" ] && { X="$c"; break; }; done
       HR="${hrBin}"; AM="${amBin}"
       CJ="$HOME/.claude.json"; CT="$HOME/.codex/config.toml"
       # agentmemory(记忆)
@@ -140,14 +144,24 @@ in
       fi
       # headroom MCP(CCR 取回);codex 的 headroom MCP 由 shell.nix 的 codex() 自愈分支注入
       [ -x "$HR" ] && { grep -q '"headroom"' "$CJ" 2>/dev/null || "$HR" mcp install --agent claude --proxy-url http://127.0.0.1:8787 >/dev/null 2>&1 || true; }
-      # context7(最新库文档)+ kubernetes(只读,EKS 排障)
+      # context7(最新库文档)+ kubernetes(可写,EKS 排障)
       if [ -x "$C" ]; then
-        grep -q '"context7"'   "$CJ" 2>/dev/null || "$C" mcp add -s user context7   -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
-        grep -q '"kubernetes"' "$CJ" 2>/dev/null || "$C" mcp add -s user kubernetes -- npx -y kubernetes-mcp-server@latest --read-only >/dev/null 2>&1 || true
+        grep -q '"context7"' "$CJ" 2>/dev/null || "$C" mcp add -s user context7 -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
+        if ! grep -q '"kubernetes"' "$CJ" 2>/dev/null; then
+          "$C" mcp add -s user kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
+        elif grep -q '"--read-only"' "$CJ" 2>/dev/null; then   # 残留只读 → 重注册为可写
+          "$C" mcp remove -s user kubernetes >/dev/null 2>&1 || true
+          "$C" mcp add -s user kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
+        fi
       fi
       if [ -x "$X" ]; then
-        grep -q 'mcp_servers.context7'   "$CT" 2>/dev/null || "$X" mcp add context7   -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
-        grep -q 'mcp_servers.kubernetes' "$CT" 2>/dev/null || "$X" mcp add kubernetes -- npx -y kubernetes-mcp-server@latest --read-only >/dev/null 2>&1 || true
+        grep -q 'mcp_servers.context7' "$CT" 2>/dev/null || "$X" mcp add context7 -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
+        if ! grep -q 'mcp_servers.kubernetes' "$CT" 2>/dev/null; then
+          "$X" mcp add kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
+        elif grep -q -- '--read-only' "$CT" 2>/dev/null; then   # 残留只读 → 重注册为可写
+          "$X" mcp remove kubernetes >/dev/null 2>&1 || true
+          "$X" mcp add kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
+        fi
       fi
     '';
   };

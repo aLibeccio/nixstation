@@ -174,7 +174,7 @@
 | **记忆**(agentmemory) | Claude ↔ Codex 双向共享项目理解 / 决策 / 约定 | `:3111`(viewer `:3113`) |
 | **压缩**(headroom) | 工具输出 / 日志进 LLM 前压缩(ML + MPS 加速),省 50–90% token | proxy `:8787` |
 
-外加两个知识 / 基础设施 MCP(两个 agent 都接):**context7**(免 key,按需注入最新库文档、减少过时 API 臆造)、**kubernetes**(只读,查集群状态、贴合 EKS 排障)。
+外加两个知识 / 基础设施 MCP(两个 agent 都接):**context7**(免 key,按需注入最新库文档、减少过时 API 臆造)、**kubernetes**(可写,查集群状态、贴合 EKS 排障)。
 
 ## 用法
 
