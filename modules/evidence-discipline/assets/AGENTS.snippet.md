@@ -1,14 +1,16 @@
 <!-- evidence-discipline:v1 -->
 
-## Evidence discipline · 调查取证纪律(排查 / 查事实 / EKS)
+## Evidence Discipline
 
-铁律:**观察 → 工具输出 → 结论。** 只允许「我跑了 X、看到 Y、所以 Z」;禁止把代码/拓扑/经验推断当事实说。
+Iron rule: observation -> tool output -> conclusion.
+Treat only this turn's tool output as fact.
+Mark everything else as `[推断]` or `[假设]`.
 
-1. **live ≠ repo** —— cluster/pod/运行时/当前配置的*现状*只能来自本轮真跑过的 `kubectl`/`aws`/日志/ClickHouse 并贴出命令;repo 里的 YAML/代码只能说「配置为」,不能说「现在是」。
-2. **根因要证据** —— 给根因前先贴证明它的日志/查询/指标;拿不出就标 `[假设]` 并写「如何确认: `<cmd>`」。
-3. **具体值要出处** —— 任何间隔/列名/超时/字节/ID/时间戳必须随附产生它的 `grep`/`SELECT`/`kubectl get`。
-4. **「修好了」前必验** —— 声称 fix/部署/重启成功前,贴变更后的 `kubectl rollout status`/`kubectl get pod`/`--previous` 新日志/重跑输出。
-5. **时间线** —— 区分事件发生时间 vs 症状被观测时间。
-6. **看不见就弃权** —— 没证据时「需要跑 `<cmd>` 才能确认」是正确回答;别用「应该/通常/和另一个服务一样」糊过去。
+1. **live != repo**: live state must come from a command run in this turn.
+2. **Root cause needs evidence**: otherwise label it `[假设]`.
+3. **Specific values need sources**: include the command that produced them.
+4. **Verify before fixed**: show post-change validation before saying fixed.
+5. **Timeline matters**: separate event time from observation time.
+6. **Unknown is valid**: write `需要跑 <cmd> 才能确认` when evidence is missing.
 
-**明确标记**:非实测的句子必须带 `[实测: <cmd>]` / `[推断]` / `[假设]` / `[未知→查: <cmd>]`;root cause / live 状态 / 「已修复」三类断言没有 `[实测]` 就降级成 `[假设]`。被要「证据/你确定」时,立刻跑命令证实或证伪,别换个说法重申。
+For root cause, live state, and fixed claims, use `[实测: <cmd>]` or downgrade to `[假设]`.

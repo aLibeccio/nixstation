@@ -4,24 +4,20 @@ let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   isLinux = pkgs.stdenv.hostPlatform.isLinux;
 
-  # ── 运行时:Nix 为准(脱钩 Homebrew)──
-  # agentmemory 用 Nix 的 node 跑,并装进 home-manager 自有的 npm 前缀 ~/.npm-global,
-  # 这样守护进程不再依赖 /opt/homebrew 的 node/npm,跨设备可复现、版本可锁。
+  # Nix-owned runtime.
   node = pkgs.nodejs_22;
   npmPrefix = "${home}/.npm-global";
-  amVersion = "0.9.27"; # ← 锁版本;要升级就改这里再 hms
+  amVersion = "0.9.27"; # pinned version
   amDir = "${npmPrefix}/lib/node_modules/@agentmemory/agentmemory";
-  amEntry = "${amDir}/dist/cli.mjs"; # daemon 入口(node 跑它)
-  amBin = "${npmPrefix}/bin/agentmemory"; # CLI(connect 等用)
+  amEntry = "${amDir}/dist/cli.mjs"; # daemon entry
+  amBin = "${npmPrefix}/bin/agentmemory"; # CLI entry
 
-  # headroom 走 uv tool(独立 Python venv,与 node 无关),同样锁版本。
+  # headroom uv-tool version.
   hrVersion = "0.26.0";
   hrBin = "${home}/.local/bin/headroom";
   hrSpec = "headroom-ai[proxy,ml,pytorch-mps]==${hrVersion}";
 
-  # 存在性保护:目标文件(二进制/入口)还没装好时(新机首次 hms,npm/uv 安装尚未完成),
-  # 不让 launchd 每 ThrottleInterval 就 crash-loop —— 轮询等待最多 ~5 分钟,
-  # 文件一出现立刻 exec;超时才 exit 1 交给 launchd 重试。
+  # launchd waits for first install before exec.
   guardedExec = waitFor: cmd:
     [
       "/bin/sh"
@@ -30,9 +26,7 @@ let
     ];
 in
 {
-  # ════════════════ macOS:launchd 两个常驻 daemon ════════════════
-  #   agentmemory : Claude Code ↔ Codex 共享记忆(REST :3111)—— Nix node 跑
-  #   headroom    : 上下文压缩 proxy(:8787)—— uv 装的 Python 工具
+  # macOS launchd daemons.
   launchd.agents = lib.optionalAttrs isDarwin {
     "com.agentmemory.daemon" = {
       enable = true;
@@ -42,7 +36,7 @@ in
           PATH = "${node}/bin:/usr/bin:/bin:/usr/sbin:/sbin"; # 只给 Nix node,不再含 /opt/homebrew
           HOME = home;
         };
-        WorkingDirectory = home; # 记忆库以相对路径 ./data 解析到 ~/data
+        WorkingDirectory = home; # data resolves under HOME
         RunAtLoad = true;
         KeepAlive = true;
         ThrottleInterval = 10;
@@ -69,7 +63,7 @@ in
     };
   };
 
-  # ════════════════ Linux:systemd user services(同 entrypoint)════════════════
+  # Linux systemd user services.
   # 没有 launchd 的 guarded 轮询;靠 Restart=always 在二进制就绪前不断重试。
   systemd.user.services = lib.optionalAttrs isLinux {
     agentmemory = {
@@ -98,25 +92,24 @@ in
     };
   };
 
-  # ════════════════ 幂等安装二进制 + 注册 MCP(macOS/Linux 都跑)════════════════
-  # 缺工具时各步 guard 自动 no-op;版本不符才装,所以老机器上重复 hms 基本是 no-op。
+  # Install binaries and register MCPs.
+  # Activation installers are guarded and idempotent.
   home.activation = {
     harnessServiceDirs = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       mkdir -p "$HOME/.headroom/logs" "$HOME/.agentmemory"
     '';
 
-    # agentmemory:用 Nix npm 装进 ~/.npm-global(脱钩 Homebrew),版本不符才装。
+    # Install pinned agentmemory.
     installAgentmemory = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       have="$(${node}/bin/node -e 'try{process.stdout.write(require("${amDir}/package.json").version)}catch(e){process.stdout.write("none")}' 2>/dev/null || echo none)"
       if [ "$have" != "${amVersion}" ]; then
         echo "[activation] installing @agentmemory/agentmemory@${amVersion} via Nix npm -> ${npmPrefix} (have=$have)..."
-        # 关键:把 Nix node 放进 PATH —— 依赖的 postinstall 脚本会调用裸 `node`(否则 code 127)。
+        # postinstall expects node on PATH.
         PATH="${node}/bin:$PATH" ${node}/bin/npm install -g --prefix "${npmPrefix}" "@agentmemory/agentmemory@${amVersion}" || true
       fi
     '';
 
-    # headroom:uv tool 装(锁版本),版本不符才装。用 uv 自管的 python,不依赖
-    # 系统/brew/Nix 的 python —— 那些一旦被卸载或 GC,venv 就失效。
+    # Install pinned headroom.
     installHeadroom = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       have="$("${hrBin}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)"
       if [ "$have" != "${hrVersion}" ]; then
@@ -126,14 +119,12 @@ in
       fi
     '';
 
-    # 幂等注册整套 harness MCP 到 Claude(~/.claude.json)和 Codex(~/.codex/config.toml)。
-    # 用各 agent 的原生 CLI(mcp add / connect),已存在则 grep 守卫跳过 → 老机器全 no-op。
-    # 配置文件本身每机本地,这里用「注册动作」实现跟仓库同步。
+    # Register harness MCPs for Claude and Codex.
     registerHarnessMcps = lib.hm.dag.entryAfter [ "installHeadroom" "installAgentmemory" ] ''
-      # codex 是 node 应用;activation 的精简 PATH 不含 node,补上 Nix 固定的 node 才跑得起来。
+      # Codex needs node during activation.
       export PATH="${node}/bin:$PATH"
       C="$HOME/.local/bin/claude"
-      # codex 可能装在 PATH 上不同前缀,多候选探测,缺失则留空跳过。
+      # Probe common codex locations.
       X=""; for c in "$HOME/.npm-global/bin/codex" "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null)" /opt/homebrew/bin/codex /usr/local/bin/codex; do [ -n "$c" ] && [ -x "$c" ] && { X="$c"; break; }; done
       HR="${hrBin}"; AM="${amBin}"
       CJ="$HOME/.claude.json"; CT="$HOME/.codex/config.toml"
@@ -142,14 +133,14 @@ in
         grep -q '"agentmemory"' "$CJ" 2>/dev/null || "$AM" connect claude-code >/dev/null 2>&1 || true
         grep -q 'mcp_servers.agentmemory' "$CT" 2>/dev/null || "$AM" connect codex >/dev/null 2>&1 || true
       fi
-      # headroom MCP(CCR 取回);codex 的 headroom MCP 由 shell.nix 的 codex() 自愈分支注入
+      # headroom MCP for Claude.
       [ -x "$HR" ] && { grep -q '"headroom"' "$CJ" 2>/dev/null || "$HR" mcp install --agent claude --proxy-url http://127.0.0.1:8787 >/dev/null 2>&1 || true; }
-      # context7(最新库文档)+ kubernetes(可写,EKS 排障)
+      # context7 docs and Kubernetes MCPs.
       if [ -x "$C" ]; then
         grep -q '"context7"' "$CJ" 2>/dev/null || "$C" mcp add -s user context7 -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
         if ! grep -q '"kubernetes"' "$CJ" 2>/dev/null; then
           "$C" mcp add -s user kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
-        elif grep -q '"--read-only"' "$CJ" 2>/dev/null; then   # 残留只读 → 重注册为可写
+        elif grep -q '"--read-only"' "$CJ" 2>/dev/null; then   # repair read-only registration
           "$C" mcp remove -s user kubernetes >/dev/null 2>&1 || true
           "$C" mcp add -s user kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
         fi
@@ -158,7 +149,7 @@ in
         grep -q 'mcp_servers.context7' "$CT" 2>/dev/null || "$X" mcp add context7 -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true
         if ! grep -q 'mcp_servers.kubernetes' "$CT" 2>/dev/null; then
           "$X" mcp add kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
-        elif grep -q -- '--read-only' "$CT" 2>/dev/null; then   # 残留只读 → 重注册为可写
+        elif grep -q -- '--read-only' "$CT" 2>/dev/null; then   # repair read-only registration
           "$X" mcp remove kubernetes >/dev/null 2>&1 || true
           "$X" mcp add kubernetes -- npx -y kubernetes-mcp-server@latest >/dev/null 2>&1 || true
         fi

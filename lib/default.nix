@@ -7,10 +7,11 @@
     ../modules/agent-harness # 跨 agent harness:agentmemory + headroom 两个 daemon + MCP 注册
     ../modules/homebrew # Brewfile 精简到 cask/字体,运行时交给 Nix
     ../modules/agent-config # Claude/Codex 可复现配置切片(幂等注入,不接管整文件)
+    ../modules/agent-tooling # Agent shells prefer Nix/home-manager CLI tools without aliases
     ../modules/evidence-discipline # 调查取证/反幻觉:skill + Codex AGENTS 切片 + Claude Stop hook
     ../modules/agentmemory-prefer # agentmemory 按需优先:本地 embeddings + skills + Codex AGENTS 切片
     ../modules/memory-sync # rclone bisync ~/data 跨设备记忆(agentmemory 共享记忆库)
-    # 注:dev-envs 是 flake 的 templates 输出(见 flake.nix),不是 home-manager 模块,不进此列表。
+    # dev-envs exports flake templates, not a home-manager module.
     # ../modules/secrets     # (推迟)sops/age,需要 API key 时再开
   ];
 }

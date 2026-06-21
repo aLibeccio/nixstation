@@ -45,16 +45,31 @@ in
       [ -x /opt/homebrew/bin/brew ] && eval "$(/opt/homebrew/bin/brew shellenv)"
       # npm 全局装到可写前缀(Nix node 默认 prefix 是只读 store);其 bin 上 PATH。
       export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-      export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
+      export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
     '';
 
     # 原 ~/.zshrc 自定义内容 + 把 Ctrl-R 固定给 atuin(最后执行,盖过 fzf)
     initContent = lib.mkMerge [
       ''
-        export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-        export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
+      export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+      export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$HOME/.npm-global/bin:$HOME/.local/bin:$PATH"
 
-        # ── fzf-tab:把 Tab 补全菜单换成 fzf 模糊选择 ──
+      # Drop stale terminfo dirs inherited from parent shells.
+      if [[ -n "''${TERMINFO_DIRS:-}" ]]; then
+        _terminfo_dirs=("''${(@s/:/)TERMINFO_DIRS}")
+        _terminfo_existing=()
+        for _terminfo_dir in "''${_terminfo_dirs[@]}"; do
+          [[ -z "$_terminfo_dir" || -d "$_terminfo_dir" ]] && _terminfo_existing+=("$_terminfo_dir")
+        done
+        if (( ''${#_terminfo_existing[@]} )); then
+          export TERMINFO_DIRS="''${(j/:/)_terminfo_existing}"
+        else
+          unset TERMINFO_DIRS
+        fi
+        unset _terminfo_dir _terminfo_dirs _terminfo_existing
+      fi
+
+      # ── fzf-tab:把 Tab 补全菜单换成 fzf 模糊选择 ──
         # 须在 compinit 之后、syntax-highlighting 之前加载(fzf-tab 的顺序要求)。
         source ${fzfTab}/share/fzf-tab/fzf-tab.plugin.zsh
         # 关掉 zsh 原生菜单,交给 fzf-tab(必须,否则会先弹原生菜单/抢不到补全)
