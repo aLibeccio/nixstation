@@ -57,14 +57,45 @@ in
     '';
 
     agentToolingInstructions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      MARK="agent-tooling:v1"
+      MARK="<!-- agent-tooling:v1 -->"
+      END="<!-- end agent-tooling:v1 -->"
+      SNIPPET=${./assets/AGENTS.snippet.md}
       for AG in "$HOME/.codex/AGENTS.md" "$HOME/.claude/CLAUDE.md"; do
         if [ ! -f "$AG" ]; then
           echo "[agent-tooling] $AG missing, skip instructions"
         elif grep -qF "$MARK" "$AG" 2>/dev/null; then
-          echo "[agent-tooling] $(basename "$AG") instructions already present"
+          TMP=$(mktemp "''${AG}.XXXXXX")
+          ${awk} -v mark="$MARK" -v end="$END" -v snippet="$SNIPPET" '
+            function emit_snippet() {
+              while ((getline line < snippet) > 0) print line
+              close(snippet)
+            }
+            $0 == mark {
+              emit_snippet()
+              skip = 1
+              legacy = 0
+              next
+            }
+            skip && $0 == end {
+              skip = 0
+              next
+            }
+            skip && /^<!-- [^>]+ -->$/ {
+              skip = 0
+              print
+              next
+            }
+            skip {
+              legacy++
+              if (legacy >= 8) skip = 0
+              next
+            }
+            { print }
+          ' "$AG" > "$TMP"
+          mv "$TMP" "$AG"
+          echo "[agent-tooling] updated $(basename "$AG") instructions"
         else
-          { printf "\n"; cat ${./assets/AGENTS.snippet.md}; } >> "$AG"
+          { printf "\n"; cat "$SNIPPET"; } >> "$AG"
           echo "[agent-tooling] appended instructions to $AG"
         fi
       done
