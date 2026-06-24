@@ -73,7 +73,6 @@ in
             $0 == mark {
               emit_snippet()
               skip = 1
-              legacy = 0
               next
             }
             skip && $0 == end {
@@ -86,8 +85,6 @@ in
               next
             }
             skip {
-              legacy++
-              if (legacy >= 8) skip = 0
               next
             }
             { print }
