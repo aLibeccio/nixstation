@@ -18,7 +18,7 @@ New `.nix` files must be tracked by Git before `hms`; flakes only see tracked fi
 
 - `home/`: packages, shell integration, and program settings.
 - `modules/homebrew/`: GUI casks and fonts; runtime CLIs stay in Nix.
-- `modules/agent-harness/`: agentmemory/headroom services plus MCP registration.
+- `modules/agent-harness/`: agentmemory service plus MCP registration.
 - `modules/agent-tooling/`: Codex/Claude CLI preference and Codex shell PATH policy.
 - `modules/evidence-discipline/`: investigation discipline snippets and Claude stop hook.
 - `modules/agentmemory-prefer/`: local embedding settings and agentmemory skills.
@@ -163,7 +163,6 @@ Use enhanced tools for interactive inspection and coding workflows. Keep POSIX b
 ## AI Agent Harness
 
 - `agentmemory`: shared long-term memory MCP server, default REST port `3111`.
-- `headroom`: context-compression proxy, default port `8787`.
 - Viewer and memory tools are local-only operational aids; do not commit memory data or credentials.
 
 ## Dev Shell Templates

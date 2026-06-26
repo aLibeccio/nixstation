@@ -64,14 +64,14 @@
       gitleaks # scan repos/commits for leaked secrets
       just # command runner (modern make for task recipes)
       mise # polyglot runtime & tool-version manager (asdf successor)
-      uv # fast Python pkg/tool manager (used to install headroom-ai for the agent harness)
+      uv # fast Python pkg/tool manager
 
       # 语言运行时 —— Nix 为准(取代 Homebrew 的 node/go/python;见 modules/homebrew)。
       # agent harness 的 agentmemory daemon 直接用 ${pkgs.nodejs_22},这里再放一份给交互/npx 用。
       nodejs_22 # Node.js LTS(+ npm/npx)
       go # Go 工具链
       golangci-lint # Go linter(原 brew formula)
-      python3 # Python 解释器(headroom 自带 uv 管的 3.13;这个给通用交互用)
+      python3 # Python 解释器(通用交互用)
 
       # Infrastructure & Cloud
       k9s

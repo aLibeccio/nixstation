@@ -4,7 +4,7 @@
 {
   modules = [
     ../home # 基础:packages / shell / programs(home-manager 主配置)
-    ../modules/agent-harness # 跨 agent harness:agentmemory + headroom 两个 daemon + MCP 注册
+    ../modules/agent-harness # 跨 agent harness:agentmemory daemon + MCP 注册
     ../modules/homebrew # Brewfile 精简到 cask/字体,运行时交给 Nix
     ../modules/agent-config # Claude/Codex 可复现配置切片(幂等注入,不接管整文件)
     ../modules/agent-tooling # Agent shells prefer Nix/home-manager CLI tools without aliases

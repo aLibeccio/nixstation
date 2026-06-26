@@ -19,11 +19,6 @@ let
 
   kubernetesMcpSpec = "kubernetes-mcp-server@0.0.63";
 
-  # headroom uv-tool version.
-  hrVersion = "0.26.0";
-  hrBin = "${home}/.local/bin/headroom";
-  hrSpec = "headroom-ai[proxy,ml,pytorch-mps]==${hrVersion}";
-
   # launchd waits for first install before exec.
   guardedExec = waitFor: cmd: [
     "/bin/sh"
@@ -50,23 +45,6 @@ in
         StandardErrorPath = "${home}/.agentmemory/daemon.err.log";
       };
     };
-    "com.headroom.proxy" = {
-      enable = true;
-      config = {
-        ProgramArguments = guardedExec hrBin ''"${hrBin}" proxy --port 8787'';
-        EnvironmentVariables = {
-          PATH = "${home}/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
-          HOME = home;
-          HEADROOM_TELEMETRY = "off"; # 关匿名遥测
-        };
-        WorkingDirectory = home;
-        RunAtLoad = true;
-        KeepAlive = true;
-        ThrottleInterval = 10;
-        StandardOutPath = "${home}/.headroom/logs/proxy.daemon.log";
-        StandardErrorPath = "${home}/.headroom/logs/proxy.daemon.err.log";
-      };
-    };
   };
 
   # Linux systemd user services.
@@ -85,24 +63,13 @@ in
       };
       Install.WantedBy = [ "default.target" ];
     };
-    headroom = {
-      Unit.Description = "headroom context-compression proxy (:8787)";
-      Service = {
-        ExecStart = "${hrBin} proxy --port 8787";
-        WorkingDirectory = home;
-        Environment = [ "HEADROOM_TELEMETRY=off" ];
-        Restart = "always";
-        RestartSec = 10;
-      };
-      Install.WantedBy = [ "default.target" ];
-    };
   };
 
   # Install binaries and register MCPs.
   # Activation installers are guarded and idempotent.
   home.activation = {
     harnessServiceDirs = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      mkdir -p "$HOME/.headroom/logs" "$HOME/.agentmemory"
+      mkdir -p "$HOME/.agentmemory"
     '';
 
     # Install pinned agentmemory.
@@ -115,24 +82,14 @@ in
       fi
     '';
 
-    # Install pinned headroom.
-    installHeadroom = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      have="$("${hrBin}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)"
-      if [ "$have" != "${hrVersion}" ]; then
-        echo "[activation] installing headroom==${hrVersion} via uv (pulls PyTorch; have=$have)..."
-        ${pkgs.uv}/bin/uv python install 3.13 || true
-        UV_PYTHON_PREFERENCE=only-managed ${pkgs.uv}/bin/uv tool install --force --python 3.13 "${hrSpec}" || true
-      fi
-    '';
-
     # Register harness MCPs for Claude and Codex.
-    registerHarnessMcps = lib.hm.dag.entryAfter [ "installHeadroom" "installAgentmemory" ] ''
+    registerHarnessMcps = lib.hm.dag.entryAfter [ "installAgentmemory" ] ''
       # Codex needs node during activation.
       export PATH="${node}/bin:$PATH"
       C="$HOME/.local/bin/claude"
       # Probe common codex locations.
       X=""; for c in "$HOME/.npm-global/bin/codex" "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null)" /opt/homebrew/bin/codex /usr/local/bin/codex; do [ -n "$c" ] && [ -x "$c" ] && { X="$c"; break; }; done
-      HR="${hrBin}"; AM="${amBin}"
+      AM="${amBin}"
       K8S_MCP_SPEC="${kubernetesMcpSpec}"
       CJ="$HOME/.claude.json"; CT="$HOME/.codex/config.toml"
       # agentmemory(记忆)
@@ -140,8 +97,6 @@ in
         grep -q '"agentmemory"' "$CJ" 2>/dev/null || "$AM" connect claude-code >/dev/null 2>&1 || true
         grep -q 'mcp_servers.agentmemory' "$CT" 2>/dev/null || "$AM" connect codex >/dev/null 2>&1 || true
       fi
-      # headroom MCP for Claude.
-      [ -x "$HR" ] && { grep -q '"headroom"' "$CJ" 2>/dev/null || "$HR" mcp install --agent claude --proxy-url http://127.0.0.1:8787 >/dev/null 2>&1 || true; }
       # context7 docs and Kubernetes MCPs.
       if [ -x "$C" ]; then
         grep -q '"context7"' "$CJ" 2>/dev/null || "$C" mcp add -s user context7 -- npx -y @upstash/context7-mcp >/dev/null 2>&1 || true

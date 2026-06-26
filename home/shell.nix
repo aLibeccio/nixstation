@@ -102,24 +102,6 @@ in
           source "$_codex_comp"
           unset _codex_comp
         fi
-
-        # ── headroom：让 claude / codex 透明走上下文压缩代理（省 token）──
-        # 逃生:HEADROOM_OFF=1 claude ... → 走原生、不压缩。
-        if (( $+commands[headroom] )); then
-          export HEADROOM_TELEMETRY=off   # 关掉匿名遥测(与 launchd daemon 一致)
-          # claude：纯环境变量直连常驻 proxy(:8787),省去每次 wrap 的开销。
-          claude() {
-            [ -n "$HEADROOM_OFF" ] && { command claude "$@"; return; }
-            ANTHROPIC_BASE_URL=http://127.0.0.1:8787 command claude "$@"
-          }
-          # codex：必须用 config provider 路由,缺失时补注入一次,省去每次 wrap 的开销。
-          codex() {
-            if [ -n "$HEADROOM_OFF" ]; then command headroom unwrap codex >/dev/null 2>&1; command codex "$@"; return; fi
-            grep -q 'model_provider = "headroom"' "$HOME/.codex/config.toml" 2>/dev/null \
-              || command headroom wrap codex --no-proxy --no-serena --no-context-tool -- --version >/dev/null 2>&1
-            command codex "$@"
-          }
-        fi
       ''
       (lib.mkAfter ''
         bindkey '^r' atuin-search
